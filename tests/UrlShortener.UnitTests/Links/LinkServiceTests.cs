@@ -108,6 +108,28 @@ public class LinkServiceTests
         Assert.Equal(0, _repository.FindCalls);
     }
 
+    [Fact]
+    public async Task VisitAsync_counts_the_click_and_saves_it()
+    {
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var created = await service.CreateAsync("https://example.com");
+
+        var visited = await service.VisitAsync(created.Link!.Code);
+
+        Assert.NotNull(visited);
+        Assert.Equal(1, visited.ClickCount);
+        Assert.Equal(1, _repository.UpdateCalls);
+    }
+
+    [Fact]
+    public async Task VisitAsync_returns_null_and_saves_nothing_for_an_unknown_code()
+    {
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+
+        Assert.Null(await service.VisitAsync("zzzzzzz"));
+        Assert.Equal(0, _repository.UpdateCalls);
+    }
+
     private sealed class FakeLinkRepository : ILinkRepository
     {
         public List<ShortLink> Links { get; } = [];
@@ -132,6 +154,14 @@ public class LinkServiceTests
         {
             FindCalls++;
             return Task.FromResult(Links.SingleOrDefault(l => l.Code == code));
+        }
+
+        public int UpdateCalls { get; private set; }
+
+        public Task UpdateAsync(ShortLink link, CancellationToken cancellationToken)
+        {
+            UpdateCalls++;
+            return Task.CompletedTask;
         }
     }
 

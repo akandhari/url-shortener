@@ -22,4 +22,6 @@ public sealed class ShortLink
     public DateTimeOffset CreatedAt { get; private set; }
 
     public long ClickCount { get; private set; }
+
+    public void RegisterClick() => ClickCount++;
 }

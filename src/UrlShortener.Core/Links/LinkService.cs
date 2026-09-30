@@ -40,4 +40,22 @@ public sealed class LinkService(ILinkRepository repository, ICodeGenerator codeG
 
         return repository.FindByCodeAsync(code, cancellationToken);
     }
+
+    /// <summary>
+    /// Resolves a code for a redirect and counts the click. Returns null when the code does not exist.
+    /// </summary>
+    public async Task<ShortLink?> VisitAsync(string? code, CancellationToken cancellationToken = default)
+    {
+        var link = await ResolveAsync(code, cancellationToken).ConfigureAwait(false);
+        if (link is null)
+        {
+            return null;
+        }
+
+        // v0.1 simplification: read-modify-write on the link row. Correct for one visitor at a time, but
+        // concurrent redirects can overwrite each other's count. Revisited in CR-002 (brownfield scenario).
+        link.RegisterClick();
+        await repository.UpdateAsync(link, cancellationToken).ConfigureAwait(false);
+        return link;
+    }
 }
