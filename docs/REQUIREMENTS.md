@@ -44,7 +44,7 @@ but I design and test it as if it were going to production.
 |---|---|---|---|
 | Same URL shortened twice: same code or a new one? | A new code each time | Different creators or campaigns get separate analytics | Ask product |
 | Redirect status: 301 or 302? | 302 | A 301 is cached by browsers, so repeat clicks would never reach us and analytics would undercount | Ask product whether SEO matters more than analytics |
-| Code length and characters | 7 characters, Base62, cryptographically random | ~3.5 trillion combinations, hard to guess, short enough to type | Revisit if volume grows |
+| Code length and characters | 7 characters, Base58 (no `0`/`O`/`I`/`l`), cryptographically random | ~2.2 trillion combinations, hard to guess, short enough to type, no look-alike characters when read or typed | Revisit if volume grows |
 | Who can create links and view stats? | Anyone; no accounts in the prototype | Keeps the prototype focused; the gap is documented as the top follow-up (API keys) | Ask security/product |
 | Which analytics matter? | Clicks per day and top referring sites | Useful without collecting personal data | Ask the people who'd use the numbers |
 | What does "reliability" cover? | A single instance that behaves correctly under concurrency and shuts down cleanly | High availability needs infrastructure that's out of scope for a prototype | Agree on targets before production |
