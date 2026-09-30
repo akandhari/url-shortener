@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain and use-cases. Must stay free of EF Core and ASP.NET references. -->
+</Project>
