@@ -1,17 +1,18 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
+using UrlShortener.IntegrationTests.Support;
 
 namespace UrlShortener.IntegrationTests;
 
-public class HealthEndpointTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
-    [Fact]
-    public async Task Live_returns_200()
+    [Theory]
+    [InlineData("/health/live")]
+    [InlineData("/health/ready")]
+    public async Task Health_endpoints_return_200(string path)
     {
         using var client = factory.CreateClient();
 
-        using var response = await client.GetAsync(new Uri("/health/live", UriKind.Relative));
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

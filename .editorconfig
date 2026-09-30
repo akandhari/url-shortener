@@ -30,3 +30,7 @@ dotnet_diagnostic.IDE0005.severity = warning
 dotnet_diagnostic.CA1707.severity = none
 # ConfigureAwait is irrelevant in test code (no synchronization context in xUnit).
 dotnet_diagnostic.CA2007.severity = none
+
+# EF Core migrations are tool-generated: exclude them from analyzers and formatting.
+[src/UrlShortener.Infrastructure/Persistence/Migrations/**.cs]
+generated_code = true
