@@ -1,0 +1,21 @@
+# --- Never commit: assignment material, AI chat/session files, private notes ---
+*.pdf
+*.bmp
+*.bundle
+.claude/settings.local.json
+.claude/plans/
+notes/
+
+# --- .NET build output ---
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+coverage/
+
+# --- Local data ---
+*.db
+*.db-shm
+*.db-wal
