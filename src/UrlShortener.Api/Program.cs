@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
+using UrlShortener.Api.Abuse;
 using UrlShortener.Api.Endpoints;
 using UrlShortener.Api.Health;
 using UrlShortener.Api.StaticPage;
@@ -43,6 +44,7 @@ builder.Services.Configure<ExceptionHandlerOptions>(options =>
         : StatusCodes.Status500InternalServerError);
 
 builder.Services.AddOpenApi();
+builder.Services.AddClientRateLimits(builder.Configuration);
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
@@ -64,6 +66,7 @@ app.UseStaticFiles(new StaticFileOptions
         context.Context.Response.Headers.ContentSecurityPolicy = ContentSecurityPolicy.Value,
 });
 app.UseRouting();
+app.UseRateLimiter();   // after routing, so each endpoint's policy is known
 
 // API description. Open to everyone in this prototype so reviewers can try it; restrict it in production.
 app.MapOpenApi();

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
+using UrlShortener.Api.Abuse;
 using UrlShortener.Core.Links;
 
 namespace UrlShortener.Api.Endpoints;
@@ -13,19 +14,23 @@ public static class LinkEndpoints
         var api = app.MapGroup("/api/links").WithTags("Links");
 
         api.MapPost("/", CreateAsync)
+            .RequireRateLimiting(RateLimiting.CreatePolicy)
             .WithName("CreateLink")
             .WithSummary("Create a short link for a URL.");
 
         api.MapGet("/{code}", GetAsync)
+            .RequireRateLimiting(RateLimiting.LookupPolicy)
             .WithName("GetLink")
             .WithSummary("Get a short link's details.");
 
         api.MapGet("/{code}/stats", GetStatsAsync)
+            .RequireRateLimiting(RateLimiting.LookupPolicy)
             .WithName("GetLinkStats")
             .WithSummary("Clicks per UTC day (last 30 days) and top 5 referring sites.");
 
         // Literal routes (/api, /health, /openapi, /scalar) take precedence over this catch-all by routing rules.
         app.MapGet("/{code}", RedirectAsync)
+            .RequireRateLimiting(RateLimiting.RedirectPolicy)
             .WithName("FollowLink")
             .WithTags("Redirect")
             .WithSummary("Redirect to the target URL (302) and record the click.");
