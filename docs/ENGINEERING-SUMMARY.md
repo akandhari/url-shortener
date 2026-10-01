@@ -27,9 +27,9 @@ Each scenario: its own branch, one commit per task, a pull request with green CI
 
 ## 3. How AI was used, and controlled
 - **11 task specs** written before the code they produced; each records the AI's output and my response per iteration.
-- **24 AI-LOG entries:** 10 kept, 13 changed, 1 rejected. "Changed" dominates because review and the gates found
+- **28 AI-LOG entries:** 12 kept, 15 changed, 1 rejected. "Changed" dominates because review and the gates found
   something to fix in most non-trivial tasks.
-- **14 sign-offs** for schema, API contract, security, dependencies and CI changes; scenario merges carry my
+- **15 sign-offs** for schema, API contract, security, dependencies and CI changes; scenario merges carry my
   `Signed-off-by`.
 - **Gates caught AI output that was wrong**, including:
   - a false claim about analyzer setup;
