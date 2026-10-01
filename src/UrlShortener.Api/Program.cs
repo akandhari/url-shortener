@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 using UrlShortener.Api.Endpoints;
 using UrlShortener.Api.Health;
+using UrlShortener.Api.StaticPage;
 using UrlShortener.Core.Links;
 using UrlShortener.Infrastructure;
 
@@ -41,6 +42,16 @@ await app.Services.MigrateDatabaseAsync();
 // Unhandled exceptions and empty error responses become ProblemDetails, without stack traces.
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+// Our web page (wwwroot). Files are served BEFORE routing: "/app.js" also matches the one-segment "/{code}" route,
+// and the static file middleware steps aside once an endpoint is chosen, so after routing it would return 404.
+app.UseDefaultFiles();   // "/" -> "/index.html"
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+        context.Context.Response.Headers.ContentSecurityPolicy = ContentSecurityPolicy.Value,
+});
+app.UseRouting();
 
 // API description. Open to everyone in this prototype so reviewers can try it; restrict it in production.
 app.MapOpenApi();
