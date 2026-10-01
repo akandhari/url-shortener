@@ -12,7 +12,7 @@ public class LinkServiceTests
     [Fact]
     public async Task CreateAsync_stores_and_returns_a_new_link()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
 
         var result = await service.CreateAsync("https://example.com/page");
 
@@ -27,7 +27,7 @@ public class LinkServiceTests
     [Fact]
     public async Task CreateAsync_gives_the_same_url_a_new_code_each_time()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
 
         var first = await service.CreateAsync("https://example.com");
         var second = await service.CreateAsync("https://example.com");
@@ -38,7 +38,7 @@ public class LinkServiceTests
     [Fact]
     public async Task CreateAsync_rejects_an_invalid_url_and_stores_nothing()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
 
         var result = await service.CreateAsync("javascript:alert(1)");
 
@@ -53,7 +53,7 @@ public class LinkServiceTests
     {
         await _repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Now), default);
         var generator = new SequenceCodeGenerator("aaaaaaa", "bbbbbbb");
-        var service = new LinkService(_repository, generator, _time);
+        var service = new LinkService(_repository, generator, new ReadModifyWriteClickRecorder(_repository), _time);
 
         var result = await service.CreateAsync("https://example.com");
 
@@ -66,7 +66,7 @@ public class LinkServiceTests
     {
         await _repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Now), default);
         var alwaysTaken = new SequenceCodeGenerator(Enumerable.Repeat("aaaaaaa", 10).ToArray());
-        var service = new LinkService(_repository, alwaysTaken, _time);
+        var service = new LinkService(_repository, alwaysTaken, new ReadModifyWriteClickRecorder(_repository), _time);
 
         var result = await service.CreateAsync("https://example.com");
 
@@ -78,7 +78,7 @@ public class LinkServiceTests
     [Fact]
     public async Task ResolveAsync_returns_the_link_for_a_known_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
         var created = await service.CreateAsync("https://example.com");
 
         var found = await service.ResolveAsync(created.Link!.Code);
@@ -89,7 +89,7 @@ public class LinkServiceTests
     [Fact]
     public async Task ResolveAsync_returns_null_for_an_unknown_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
 
         Assert.Null(await service.ResolveAsync("zzzzzzz"));
         Assert.Equal(1, _repository.FindCalls);
@@ -102,7 +102,7 @@ public class LinkServiceTests
     [InlineData("abc123O")]
     public async Task ResolveAsync_skips_the_repository_for_malformed_codes(string? code)
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
 
         Assert.Null(await service.ResolveAsync(code));
         Assert.Equal(0, _repository.FindCalls);
@@ -111,7 +111,7 @@ public class LinkServiceTests
     [Fact]
     public async Task VisitAsync_counts_the_click_and_saves_it()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
         var created = await service.CreateAsync("https://example.com");
 
         var visited = await service.VisitAsync(created.Link!.Code);
@@ -124,7 +124,7 @@ public class LinkServiceTests
     [Fact]
     public async Task VisitAsync_returns_null_and_saves_nothing_for_an_unknown_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
 
         Assert.Null(await service.VisitAsync("zzzzzzz"));
         Assert.Equal(0, _repository.UpdateCalls);

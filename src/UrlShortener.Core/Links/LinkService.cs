@@ -1,6 +1,10 @@
 namespace UrlShortener.Core.Links;
 
-public sealed class LinkService(ILinkRepository repository, ICodeGenerator codeGenerator, TimeProvider timeProvider)
+public sealed class LinkService(
+    ILinkRepository repository,
+    ICodeGenerator codeGenerator,
+    IClickRecorder clickRecorder,
+    TimeProvider timeProvider)
 {
     /// <summary>
     /// With ~2.2 trillion possible codes a single collision is rare; five in a row means something is broken
@@ -52,10 +56,7 @@ public sealed class LinkService(ILinkRepository repository, ICodeGenerator codeG
             return null;
         }
 
-        // v0.1 simplification: read-modify-write on the link row. Correct for one visitor at a time, but
-        // concurrent redirects can overwrite each other's count. Revisited in CR-002 (brownfield scenario).
-        link.RegisterClick();
-        await repository.UpdateAsync(link, cancellationToken).ConfigureAwait(false);
+        await clickRecorder.RecordAsync(link, cancellationToken).ConfigureAwait(false);
         return link;
     }
 }

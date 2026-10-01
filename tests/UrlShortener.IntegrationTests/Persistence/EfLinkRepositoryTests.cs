@@ -77,7 +77,8 @@ public sealed class EfLinkRepositoryTests : IDisposable
         using var db = _database.CreateContext();
         var repository = new EfLinkRepository(db);
         await repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Created), default);
-        var service = new LinkService(repository, new SequenceCodeGenerator("aaaaaaa", "bbbbbbb"), TimeProvider.System);
+        var service = new LinkService(
+            repository, new SequenceCodeGenerator("aaaaaaa", "bbbbbbb"), new ReadModifyWriteClickRecorder(repository), TimeProvider.System);
 
         var result = await service.CreateAsync("https://example.com");
 

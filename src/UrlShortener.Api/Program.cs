@@ -14,6 +14,7 @@ var connectionString = builder.Configuration.GetConnectionString("Links")
 // Core services
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ICodeGenerator, RandomCodeGenerator>();
+builder.Services.AddScoped<IClickRecorder, ReadModifyWriteClickRecorder>();
 builder.Services.AddScoped<LinkService>();
 
 // Persistence
