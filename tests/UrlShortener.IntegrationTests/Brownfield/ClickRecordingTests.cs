@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using UrlShortener.Core.Links;
 using UrlShortener.Infrastructure.Clicks;
@@ -93,8 +93,8 @@ public sealed class ClickRecordingTests(ApiFactory factory) : IClassFixture<ApiF
         await using var provider = services.BuildServiceProvider();
         var options = Options.Create(new ClickRecordingOptions());
         var buffer = new ClickBuffer(options);
-        var writer = new ClickWriterService(
-            buffer, provider.GetRequiredService<IServiceScopeFactory>(), options, NullLogger<ClickWriterService>.Instance);
+        var log = new CapturingLogger<ClickWriterService>();
+        var writer = new ClickWriterService(buffer, provider.GetRequiredService<IServiceScopeFactory>(), options, log);
 
         // Queue clicks while the writer is not running, then start and immediately stop it (as on shutdown).
         for (var i = 0; i < 5; i++)
@@ -105,6 +105,7 @@ public sealed class ClickRecordingTests(ApiFactory factory) : IClassFixture<ApiF
         await ((IHostedService)writer).StartAsync(CancellationToken.None);
         await ((IHostedService)writer).StopAsync(CancellationToken.None);
 
+        Assert.DoesNotContain(log.Entries, e => e.Level >= LogLevel.Warning);
         using var check = database.CreateContext();
         Assert.Equal(5, await check.ClickEvents.CountAsync());
         Assert.Equal(5, (await check.Links.SingleAsync()).ClickCount);

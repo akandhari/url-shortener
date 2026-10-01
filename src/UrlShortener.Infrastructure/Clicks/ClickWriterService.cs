@@ -34,9 +34,19 @@ internal sealed partial class ClickWriterService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Graceful shutdown: write what is still queued so normal restarts don't lose clicks.
-            await WriteAvailableAsync(CancellationToken.None).ConfigureAwait(false);
+            // Shutting down; StopAsync drains what is left.
         }
+    }
+
+    /// <summary>
+    /// Graceful shutdown: after the loop has stopped, write whatever is still queued so normal restarts don't lose
+    /// clicks. Done here rather than in ExecuteAsync because, if the host stops before ExecuteAsync has started
+    /// (it runs on a background task), ExecuteAsync may never run at all.
+    /// </summary>
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        await base.StopAsync(cancellationToken).ConfigureAwait(false);
+        await WriteAvailableAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     private async Task WriteAvailableAsync(CancellationToken cancellationToken)
