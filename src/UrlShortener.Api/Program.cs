@@ -18,6 +18,14 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ICodeGenerator, RandomCodeGenerator>();
 builder.Services.AddScoped<LinkService>();
 
+// Abuse rules for target URLs (AB-02): never link to ourselves; optional domain denylist from configuration.
+builder.Services.AddSingleton(_ =>
+{
+    var ownHost = builder.Configuration.GetValue<Uri?>($"{ShortLinkOptions.SectionName}:PublicBaseUrl")?.IdnHost;
+    var blocked = builder.Configuration.GetSection("Abuse:BlockedDomains").Get<string[]>() ?? [];
+    return new TargetUrlPolicy(ownHost is null ? [] : [ownHost], blocked);
+});
+
 // Persistence
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.Configure<ClickRecordingOptions>(builder.Configuration.GetSection(ClickRecordingOptions.SectionName));

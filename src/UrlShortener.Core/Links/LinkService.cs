@@ -6,7 +6,8 @@ public sealed class LinkService(
     IRedirectLookup redirectLookup,
     IClickRecorder clickRecorder,
     ILinkStatsQuery statsQuery,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    TargetUrlPolicy? urlPolicy = null)
 {
     /// <summary>
     /// With ~2.2 trillion possible codes a single collision is rare; five in a row means something is broken
@@ -22,7 +23,7 @@ public sealed class LinkService(
 
     public async Task<CreateLinkResult> CreateAsync(string? rawTarget, CancellationToken cancellationToken = default)
     {
-        var validation = TargetUrlValidator.Validate(rawTarget);
+        var validation = TargetUrlValidator.Validate(rawTarget, urlPolicy);
         if (!validation.IsValid)
         {
             return CreateLinkResult.Failure(CreateLinkError.InvalidUrl, validation.Error);
