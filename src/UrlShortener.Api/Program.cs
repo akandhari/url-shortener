@@ -55,6 +55,14 @@ var app = builder.Build();
 
 await app.Services.MigrateDatabaseAsync();
 
+// Security headers on every response, including errors (AB-05). HSTS only outside Development and only matters
+// over HTTPS: browsers then refuse plain HTTP for this host.
+app.UseSecurityHeaders();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 // Unhandled exceptions and empty error responses become ProblemDetails, without stack traces.
 app.UseExceptionHandler();
 app.UseStatusCodePages();
