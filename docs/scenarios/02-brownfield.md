@@ -183,5 +183,44 @@ right after a miss would keep returning 404). **Follow-up for AB-04:** disabling
 `Microsoft.Extensions.Caching.Memory` was already a transitive dependency of EF Core; it is now referenced explicitly
 (sign-off at scenario review).
 
+### BF-09: upgrade
+A database built as v0.1.0 left it (first migration only, links with counts 7 and 0) upgrades to v0.2 with links,
+counts and targets intact, the `Links` table schema unchanged (so rollback to v0.1.0 stays possible), and old links
+able to receive click events. The real app also upgraded the local database left over from greenfield testing.
+
 ## 6. Validation
-*Filled in at close-out (BF-10).*
+
+| Check | Result |
+|---|---|
+| **BF-03 lost-update test** | **Red on v0.1 (1 of 50 clicks counted) → green after BF-06 (50 of 50)**, stable in repeated runs |
+| Characterization tests (BF-02) | Green before and after every change, never edited |
+| Pure refactor (BF-04) | Only BF-03 red, everything else green |
+| Exact stats numbers | Events seeded on known days and referrers (one outside the 30-day window) → exact per-day and referrer results |
+| Shutdown | Queued clicks are written on stop; no warnings or errors logged |
+| Buffer full | Click dropped and counted, no exception |
+| Cache | Hit skips the database; unknown codes not cached; size bounded |
+| Upgrade v0.1 → v0.2 | Data intact, `Links` schema unchanged (rollback-safe) |
+| Gates | `verify.ps1` green locally and in CI: 56 unit + 50 integration tests |
+| Manual | Real app: 3 clicks from a news site + 1 direct → `clickCount` 4, stats split 3 / 1, no errors in the log |
+
+Bugs found by the tests during this scenario (both fixed, both in the history): the stats endpoint returned 500 (EF Core
+could not translate a sort, BF-07), and queued clicks could be lost if the host stopped before the writer started (BF-06).
+
+## 7. Known limitations
+| Limitation | Why accepted | Next step |
+|---|---|---|
+| Counts are eventually consistent (milliseconds to seconds) | Keeps the database write off the redirect | None needed for analytics |
+| Clicks in memory are lost on a crash; dropped if the buffer is full | Prototype must run with no extra infrastructure | Durable queue (Service Bus / Kafka) |
+| One instance only (buffer and cache are per process) | Single-node prototype (ADR-0001) | Durable queue + distributed cache |
+| Bots are counted | Needs a product decision and a reliable signal | Bot filtering |
+| All click events kept forever | Retention is a product/legal decision | Retention policy |
+| `totalClicks` can exceed the sum of `clicksPerDay` for links from v0.1 | Clicks counted before events existed have no dates | Documented in the API description |
+| Cache must be evicted when links can be disabled | Links can't be disabled yet | AB-04 |
+
+## 8. Sign-offs (at scenario review)
+- Schema: `AddClickEvents` migration (BF-05)
+- Public API contract: `GET /api/links/{code}/stats` (BF-07), additive
+- Behaviour change: click count becomes eventually consistent (BF-06)
+- Dependencies: `Microsoft.Extensions.Hosting.Abstractions` 10.0.12 (BF-06), `Microsoft.Extensions.Caching.Memory` 10.0.12 (BF-08, previously transitive)
+
+ADR: [0003 Async click recording](../adr/0003-async-click-recording.md).
