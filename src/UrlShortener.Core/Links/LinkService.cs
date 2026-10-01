@@ -3,6 +3,7 @@ namespace UrlShortener.Core.Links;
 public sealed class LinkService(
     ILinkRepository repository,
     ICodeGenerator codeGenerator,
+    IRedirectLookup redirectLookup,
     IClickRecorder clickRecorder,
     ILinkStatsQuery statsQuery,
     TimeProvider timeProvider)
@@ -56,16 +57,21 @@ public sealed class LinkService(
     /// Resolves a code for a redirect and records the click. Returns null when the code does not exist.
     /// The click is queued, not written here, so the redirect never waits for the database.
     /// </summary>
-    public async Task<ShortLink?> VisitAsync(string? code, Uri? referrer, CancellationToken cancellationToken = default)
+    public async Task<RedirectTarget?> VisitAsync(string? code, Uri? referrer, CancellationToken cancellationToken = default)
     {
-        var link = await ResolveAsync(code, cancellationToken).ConfigureAwait(false);
-        if (link is null)
+        if (!ShortCode.IsWellFormed(code))
         {
             return null;
         }
 
-        clickRecorder.Record(new ClickEvent(link.Id, timeProvider.GetUtcNow(), ClickEvent.ReferrerHostFrom(referrer)));
-        return link;
+        var target = await redirectLookup.FindAsync(code, cancellationToken).ConfigureAwait(false);
+        if (target is null)
+        {
+            return null;
+        }
+
+        clickRecorder.Record(new ClickEvent(target.LinkId, timeProvider.GetUtcNow(), ClickEvent.ReferrerHostFrom(referrer)));
+        return target;
     }
 
     /// <summary>Click analytics for <paramref name="code"/>, or null when the code does not exist.</summary>

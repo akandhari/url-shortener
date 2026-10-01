@@ -14,7 +14,7 @@ public class LinkServiceTests
     [Fact]
     public async Task CreateAsync_stores_and_returns_a_new_link()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         var result = await service.CreateAsync("https://example.com/page");
 
@@ -29,7 +29,7 @@ public class LinkServiceTests
     [Fact]
     public async Task CreateAsync_gives_the_same_url_a_new_code_each_time()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         var first = await service.CreateAsync("https://example.com");
         var second = await service.CreateAsync("https://example.com");
@@ -40,7 +40,7 @@ public class LinkServiceTests
     [Fact]
     public async Task CreateAsync_rejects_an_invalid_url_and_stores_nothing()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         var result = await service.CreateAsync("javascript:alert(1)");
 
@@ -55,7 +55,7 @@ public class LinkServiceTests
     {
         await _repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Now), default);
         var generator = new SequenceCodeGenerator("aaaaaaa", "bbbbbbb");
-        var service = new LinkService(_repository, generator, _clicks, _stats, _time);
+        var service = new LinkService(_repository, generator, new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         var result = await service.CreateAsync("https://example.com");
 
@@ -68,7 +68,7 @@ public class LinkServiceTests
     {
         await _repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Now), default);
         var alwaysTaken = new SequenceCodeGenerator(Enumerable.Repeat("aaaaaaa", 10).ToArray());
-        var service = new LinkService(_repository, alwaysTaken, _clicks, _stats, _time);
+        var service = new LinkService(_repository, alwaysTaken, new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         var result = await service.CreateAsync("https://example.com");
 
@@ -80,7 +80,7 @@ public class LinkServiceTests
     [Fact]
     public async Task ResolveAsync_returns_the_link_for_a_known_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
         var created = await service.CreateAsync("https://example.com");
 
         var found = await service.ResolveAsync(created.Link!.Code);
@@ -91,7 +91,7 @@ public class LinkServiceTests
     [Fact]
     public async Task ResolveAsync_returns_null_for_an_unknown_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         Assert.Null(await service.ResolveAsync("zzzzzzz"));
         Assert.Equal(1, _repository.FindCalls);
@@ -104,7 +104,7 @@ public class LinkServiceTests
     [InlineData("abc123O")]
     public async Task ResolveAsync_skips_the_repository_for_malformed_codes(string? code)
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         Assert.Null(await service.ResolveAsync(code));
         Assert.Equal(0, _repository.FindCalls);
@@ -113,12 +113,12 @@ public class LinkServiceTests
     [Fact]
     public async Task VisitAsync_records_one_click_with_link_time_and_referrer_host()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
         var created = await service.CreateAsync("https://example.com");
 
         var visited = await service.VisitAsync(created.Link!.Code, new Uri("https://News.Example.com/article?token=secret"));
 
-        Assert.Same(created.Link, visited);
+        Assert.Equal(new RedirectTarget(created.Link.Id, created.Link.TargetUrl), visited);
         var click = Assert.Single(_clicks.Recorded);
         Assert.Equal(created.Link.Id, click.LinkId);
         Assert.Equal(Now, click.OccurredAt);
@@ -128,7 +128,7 @@ public class LinkServiceTests
     [Fact]
     public async Task VisitAsync_returns_null_and_records_nothing_for_an_unknown_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         Assert.Null(await service.VisitAsync("zzzzzzz", referrer: null));
         Assert.Empty(_clicks.Recorded);
@@ -164,7 +164,7 @@ public class LinkServiceTests
     [Fact]
     public async Task GetStatsAsync_asks_for_the_last_30_utc_days_including_today()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
         var created = await service.CreateAsync("https://example.com");
 
         var stats = await service.GetStatsAsync(created.Link!.Code);
@@ -180,10 +180,17 @@ public class LinkServiceTests
     [InlineData("bad")]       // malformed
     public async Task GetStatsAsync_returns_null_and_runs_no_query_for_unknown_codes(string code)
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _stats, _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
 
         Assert.Null(await service.GetStatsAsync(code));
         Assert.Null(_stats.RequestedSince);
+    }
+
+    /// <summary>Uncached lookup straight from the fake repository.</summary>
+    private sealed class RepositoryLookup(FakeLinkRepository repository) : IRedirectLookup
+    {
+        public async Task<RedirectTarget?> FindAsync(string code, CancellationToken cancellationToken) =>
+            await repository.FindByCodeAsync(code, cancellationToken) is { } link ? new RedirectTarget(link.Id, link.TargetUrl) : null;
     }
 
     private sealed class FakeStatsQuery : ILinkStatsQuery

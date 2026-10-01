@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using UrlShortener.Core.Links;
 using UrlShortener.Infrastructure.Clicks;
 using UrlShortener.Infrastructure.Persistence;
+using UrlShortener.Infrastructure.Redirects;
 
 namespace UrlShortener.Infrastructure;
 
@@ -15,6 +16,11 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<ILinkRepository, EfLinkRepository>();
         services.AddScoped<ILinkStatsQuery, EfLinkStatsQuery>();
+
+        // Redirect path: cached code → target lookups.
+        services.AddOptions<RedirectCacheOptions>();
+        services.AddSingleton<RedirectCache>();
+        services.AddScoped<IRedirectLookup, CachedRedirectLookup>();
 
         // Click recording: redirects queue clicks; one background writer stores them in batches.
         services.AddOptions<ClickRecordingOptions>();

@@ -175,5 +175,13 @@ translate sorting on a record created inside the LINQ query. The server log show
 projection in SQL and builds the records afterwards. An exact-numbers test (events seeded on known days with known
 referrers, including one outside the 30-day window) pins the result.
 
+### BF-08: redirect lookup cache
+The redirect now asks an `IRedirectLookup` for just `(link id, target)`, backed by a size-limited in-memory cache
+(5 minutes, 10,000 entries). Decisions: cache only the redirect path (caching whole links would make the details
+endpoint show stale click counts); never cache unknown codes (random requests could fill memory, and a link created
+right after a miss would keep returning 404). **Follow-up for AB-04:** disabling a link must remove its cache entry.
+`Microsoft.Extensions.Caching.Memory` was already a transitive dependency of EF Core; it is now referenced explicitly
+(sign-off at scenario review).
+
 ## 6. Validation
 *Filled in at close-out (BF-10).*

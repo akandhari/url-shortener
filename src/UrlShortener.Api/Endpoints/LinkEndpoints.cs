@@ -87,10 +87,10 @@ public static class LinkEndpoints
         CancellationToken cancellationToken)
     {
         Uri.TryCreate(httpRequest.Headers.Referer.ToString(), UriKind.Absolute, out var referrer);
-        var link = await links.VisitAsync(code, referrer, cancellationToken);
+        var target = await links.VisitAsync(code, referrer, cancellationToken);
 
         // 302 (not 301): browsers must not cache the redirect, or repeat clicks would never be counted.
-        return link is null ? NotFound() : TypedResults.Redirect(link.TargetUrl.AbsoluteUri, permanent: false);
+        return target is null ? NotFound() : TypedResults.Redirect(target.TargetUrl.AbsoluteUri, permanent: false);
     }
 
     private static ProblemHttpResult NotFound() =>
