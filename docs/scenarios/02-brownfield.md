@@ -128,7 +128,23 @@ Each task is still its own commit, and the high-impact changes (the migration in
 BF-07) get their sign-off rows when I approve the scenario, recorded in the merge commit.
 
 ## 5. Execution
-*Filled in as the work happens.*
+
+### BF-02: characterization tests (green on v0.1)
+Pinned: exact 302 target, each sequential redirect counted, 404 for unknown/malformed codes with nothing counted,
+new links at zero. Counts are asserted on the outcome (poll until reached), not the timing, so these tests stay
+valid when counting becomes eventually consistent.
+
+### BF-03: the bug, proven before any fix
+`ConcurrentClickTests`: create a link, fire **50 redirects at the same time**, expect 50 clicks.
+
+```
+Assert.Equal() Failure: Values differ
+Expected: 50
+Actual:   1
+```
+Same result in 3 out of 3 runs. All 50 redirects returned 302, but the count is **1**: every request read
+`ClickCount = 0` before any of them wrote, and each wrote back `1`. This is the lost update from 3.2, in its worst form.
+The test is committed **failing on purpose**, so the history shows red before green.
 
 ## 6. Validation
 *Filled in at close-out (BF-10).*
