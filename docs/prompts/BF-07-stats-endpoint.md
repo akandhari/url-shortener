@@ -6,7 +6,7 @@
 | **Depends on** | BF-06 |
 | **Requirements** | FR-5, FR-4, NFR-4 |
 | **Needs my sign-off?** | Reviewed with the scenario: public API contract (additive) |
-| **Status** | In progress |
+| **Status** | Done |
 
 ## Goal
 Answer the change request: for one link, how many clicks per day and from which sites, available over the API and on
@@ -65,10 +65,10 @@ the web page.
 |---|---|---|---|
 | 1 | Initial spec above | `ILinkStatsQuery` (Core) + `EfLinkStatsQuery` (per-day via parameterised `SqlQuery`, referrers via LINQ), `LinkService.GetStatsAsync`, `GET /api/links/{code}/stats`, `LinkStatsResponse` (null host → `(direct)`), stats panel on the page (`createElement` + `textContent`), 7 tests | Analyzer CA1305 caught a culture-dependent date format in a test → invariant culture. |
 | 2 | Run the gates | 3 failures: the stats endpoint returned **500**, and the BF-06 shutdown test failed once | 500: EF Core can't translate ordering on a record built inside the query; fixed by sorting an anonymous projection and building the records in memory (found from the server log, not guessed). Shutdown test: a real BF-06 bug, see BF-06 iteration 3. |
-| 3 | Re-run | All gates green (56 unit, 46 integration); full suite 4/4 | Pending scenario review. |
+| 3 | Re-run | All gates green (56 unit, 46 integration); full suite 4/4 | Approved at scenario review (PR #2). |
 
 ## Outcome
-- **Decision:**
-- **AI-LOG row:**
-- **Commit(s):**
-- **Sign-off:** scenario review
+- **Decision:** Changed (see iterations)
+- **AI-LOG row:** #16
+- **Commit(s):** see PR #2
+- **Sign-off:** SIGNOFF #7, approved at scenario review (PR #2)

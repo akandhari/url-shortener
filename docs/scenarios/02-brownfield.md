@@ -217,7 +217,7 @@ could not translate a sort, BF-07), and queued clicks could be lost if the host 
 | `totalClicks` can exceed the sum of `clicksPerDay` for links from v0.1 | Clicks counted before events existed have no dates | Documented in the API description |
 | Cache must be evicted when links can be disabled | Links can't be disabled yet | AB-04 |
 
-## 8. Sign-offs (at scenario review)
+## 8. Sign-offs (approved at scenario review, PR #2: SIGNOFF #6–#9)
 - Schema: `AddClickEvents` migration (BF-05)
 - Public API contract: `GET /api/links/{code}/stats` (BF-07), additive
 - Behaviour change: click count becomes eventually consistent (BF-06)

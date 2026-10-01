@@ -6,7 +6,7 @@
 | **Depends on** | BF-05 |
 | **Requirements** | FR-5, NFR-1, NFR-2, NFR-4 |
 | **Needs my sign-off?** | Reviewed with the scenario (no new packages; behaviour change: click count becomes eventually consistent) |
-| **Status** | In progress |
+| **Status** | Done |
 
 ## Goal
 Every click is counted, even under concurrent redirects (BF-03 turns green), and the visitor never waits for a
@@ -68,7 +68,7 @@ database write. Each click becomes a `ClickEvent` row that later powers per-day 
 at the end of the scenario (agreed to meet the deadline) there are no mid-story edits by me to show, and I won't fake them.
 
 ## Outcome
-- **Decision:**
-- **AI-LOG row:**
-- **Commit(s):**
-- **Sign-off:** scenario review
+- **Decision:** Changed (see iterations)
+- **AI-LOG row:** #14, #15
+- **Commit(s):** see PR #2
+- **Sign-off:** SIGNOFF #8, #9, approved at scenario review (PR #2)
