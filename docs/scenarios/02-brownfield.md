@@ -163,5 +163,17 @@ consistent (by design, see 3.4).
 Found while building: the background writer needs `Microsoft.Extensions.Hosting.Abstractions` in Infrastructure
 (new package, sign-off at scenario review).
 
+**A shutdown bug found later (during BF-07):** the test "stopping the writer flushes queued clicks" failed once in a
+full run. Instead of re-running until green, I captured the writer's logs and investigated. In .NET 10,
+`BackgroundService` starts `ExecuteAsync` on a background task; if the host stops before it begins, the drain code
+inside `ExecuteAsync` never runs. Fixed by draining in `StopAsync` (separate commit), then verified with 15 isolated
+runs and 4 full-suite runs.
+
+### BF-07: stats
+`GET /api/links/{code}/stats` and a stats panel on the page. The first run returned **500**: EF Core could not
+translate sorting on a record created inside the LINQ query. The server log showed it; the fix sorts an anonymous
+projection in SQL and builds the records afterwards. An exact-numbers test (events seeded on known days with known
+referrers, including one outside the 30-day window) pins the result.
+
 ## 6. Validation
 *Filled in at close-out (BF-10).*

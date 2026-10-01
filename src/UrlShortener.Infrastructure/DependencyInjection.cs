@@ -14,6 +14,7 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<ILinkRepository, EfLinkRepository>();
+        services.AddScoped<ILinkStatsQuery, EfLinkStatsQuery>();
 
         // Click recording: redirects queue clicks; one background writer stores them in batches.
         services.AddOptions<ClickRecordingOptions>();

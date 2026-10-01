@@ -4,6 +4,7 @@ public sealed class LinkService(
     ILinkRepository repository,
     ICodeGenerator codeGenerator,
     IClickRecorder clickRecorder,
+    ILinkStatsQuery statsQuery,
     TimeProvider timeProvider)
 {
     /// <summary>
@@ -11,6 +12,12 @@ public sealed class LinkService(
     /// (for example a faulty generator), so we stop instead of looping.
     /// </summary>
     public const int MaxCodeAttempts = 5;
+
+    /// <summary>Days of per-day history in the stats, including today (UTC).</summary>
+    public const int StatsDays = 30;
+
+    /// <summary>How many referring sites the stats list.</summary>
+    public const int TopReferrerCount = 5;
 
     public async Task<CreateLinkResult> CreateAsync(string? rawTarget, CancellationToken cancellationToken = default)
     {
@@ -59,5 +66,23 @@ public sealed class LinkService(
 
         clickRecorder.Record(new ClickEvent(link.Id, timeProvider.GetUtcNow(), ClickEvent.ReferrerHostFrom(referrer)));
         return link;
+    }
+
+    /// <summary>Click analytics for <paramref name="code"/>, or null when the code does not exist.</summary>
+    public async Task<LinkStats?> GetStatsAsync(string? code, CancellationToken cancellationToken = default)
+    {
+        var link = await ResolveAsync(code, cancellationToken).ConfigureAwait(false);
+        if (link is null)
+        {
+            return null;
+        }
+
+        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var perDay = await statsQuery.GetClicksPerDayAsync(link.Id, today.AddDays(-(StatsDays - 1)), cancellationToken)
+            .ConfigureAwait(false);
+        var referrers = await statsQuery.GetTopReferrersAsync(link.Id, TopReferrerCount, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new LinkStats(link, perDay, referrers);
     }
 }

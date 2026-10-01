@@ -80,5 +80,14 @@ button:disabled { opacity: 0.6; cursor: wait; }
 .result a { flex: 1; font-size: 1.1rem; word-break: break-all; color: var(--accent); }
 .meta { margin: 10px 0 0; color: var(--muted); word-break: break-all; }
 
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.stats h2 { margin: 0 0 6px; font-size: 0.95rem; }
+.stats .unit { font-weight: normal; color: var(--muted); font-size: 0.8rem; }
+.stat-list { margin: 0; padding: 0; list-style: none; font-size: 0.9rem; }
+.stat-list li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+.stat-list li span:first-child { word-break: break-all; }
+.stat-list .empty { color: var(--muted); border-bottom: 0; }
+@media (max-width: 480px) { .stats { grid-template-columns: 1fr; } }
+
 footer { margin-top: 24px; font-size: 0.9rem; }
 footer a { color: var(--muted); }

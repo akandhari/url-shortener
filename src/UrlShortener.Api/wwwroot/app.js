@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const clicks = document.getElementById("clicks");
   const copyButton = document.getElementById("copy");
   const refreshButton = document.getElementById("refresh");
+  const perDayList = document.getElementById("per-day");
+  const referrerList = document.getElementById("referrers");
 
   let currentCode = null;
 
@@ -23,6 +25,40 @@ document.addEventListener("DOMContentLoaded", () => {
   function clearError() {
     errorBox.textContent = "";
     errorBox.hidden = true;
+  }
+
+  // Builds list items with createElement + textContent only: API data is never parsed as HTML.
+  function fillList(list, rows, emptyText) {
+    list.replaceChildren();
+    if (rows.length === 0) {
+      const item = document.createElement("li");
+      item.className = "empty";
+      item.textContent = emptyText;
+      list.append(item);
+      return;
+    }
+
+    for (const [label, value] of rows) {
+      const item = document.createElement("li");
+      const name = document.createElement("span");
+      const count = document.createElement("span");
+      name.textContent = label;
+      count.textContent = String(value);
+      item.append(name, count);
+      list.append(item);
+    }
+  }
+
+  async function loadStats(code) {
+    const response = await fetch(`/api/links/${encodeURIComponent(code)}/stats`);
+    if (!response.ok) {
+      showError(await readError(response));
+      return;
+    }
+
+    const stats = await response.json();
+    fillList(perDayList, stats.clicksPerDay.slice().reverse().map(d => [d.date, d.clicks]), "No clicks yet");
+    fillList(referrerList, stats.topReferrers.map(r => [r.host, r.clicks]), "No clicks yet");
   }
 
   function showLink(link) {
@@ -62,7 +98,9 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      showLink(await response.json());
+      const link = await response.json();
+      showLink(link);
+      await loadStats(link.code);
     } catch {
       showError("Could not reach the server. Please try again.");
     } finally {
@@ -94,6 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       showLink(await response.json());
+      await loadStats(currentCode);
     } catch {
       showError("Could not reach the server. Please try again.");
     }

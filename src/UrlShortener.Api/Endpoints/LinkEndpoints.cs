@@ -20,6 +20,10 @@ public static class LinkEndpoints
             .WithName("GetLink")
             .WithSummary("Get a short link's details.");
 
+        api.MapGet("/{code}/stats", GetStatsAsync)
+            .WithName("GetLinkStats")
+            .WithSummary("Clicks per UTC day (last 30 days) and top 5 referring sites.");
+
         // Literal routes (/api, /health, /openapi, /scalar) take precedence over this catch-all by routing rules.
         app.MapGet("/{code}", RedirectAsync)
             .WithName("FollowLink")
@@ -65,6 +69,15 @@ public static class LinkEndpoints
         return link is null
             ? NotFound()
             : TypedResults.Ok(LinkResponse.From(link, options.Value.ResolveBaseUrl(httpRequest)));
+    }
+
+    private static async Task<Results<Ok<LinkStatsResponse>, ProblemHttpResult>> GetStatsAsync(
+        string code,
+        LinkService links,
+        CancellationToken cancellationToken)
+    {
+        var stats = await links.GetStatsAsync(code, cancellationToken);
+        return stats is null ? NotFound() : TypedResults.Ok(LinkStatsResponse.From(stats));
     }
 
     private static async Task<Results<RedirectHttpResult, ProblemHttpResult>> RedirectAsync(
