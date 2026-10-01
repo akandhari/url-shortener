@@ -1,12 +1,24 @@
 namespace UrlShortener.Core.Links;
 
-public sealed class LinkService(ILinkRepository repository, ICodeGenerator codeGenerator, TimeProvider timeProvider)
+public sealed class LinkService(
+    ILinkRepository repository,
+    ICodeGenerator codeGenerator,
+    IRedirectLookup redirectLookup,
+    IClickRecorder clickRecorder,
+    ILinkStatsQuery statsQuery,
+    TimeProvider timeProvider)
 {
     /// <summary>
     /// With ~2.2 trillion possible codes a single collision is rare; five in a row means something is broken
     /// (for example a faulty generator), so we stop instead of looping.
     /// </summary>
     public const int MaxCodeAttempts = 5;
+
+    /// <summary>Days of per-day history in the stats, including today (UTC).</summary>
+    public const int StatsDays = 30;
+
+    /// <summary>How many referring sites the stats list.</summary>
+    public const int TopReferrerCount = 5;
 
     public async Task<CreateLinkResult> CreateAsync(string? rawTarget, CancellationToken cancellationToken = default)
     {
@@ -42,9 +54,28 @@ public sealed class LinkService(ILinkRepository repository, ICodeGenerator codeG
     }
 
     /// <summary>
-    /// Resolves a code for a redirect and counts the click. Returns null when the code does not exist.
+    /// Resolves a code for a redirect and records the click. Returns null when the code does not exist.
+    /// The click is queued, not written here, so the redirect never waits for the database.
     /// </summary>
-    public async Task<ShortLink?> VisitAsync(string? code, CancellationToken cancellationToken = default)
+    public async Task<RedirectTarget?> VisitAsync(string? code, Uri? referrer, CancellationToken cancellationToken = default)
+    {
+        if (!ShortCode.IsWellFormed(code))
+        {
+            return null;
+        }
+
+        var target = await redirectLookup.FindAsync(code, cancellationToken).ConfigureAwait(false);
+        if (target is null)
+        {
+            return null;
+        }
+
+        clickRecorder.Record(new ClickEvent(target.LinkId, timeProvider.GetUtcNow(), ClickEvent.ReferrerHostFrom(referrer)));
+        return target;
+    }
+
+    /// <summary>Click analytics for <paramref name="code"/>, or null when the code does not exist.</summary>
+    public async Task<LinkStats?> GetStatsAsync(string? code, CancellationToken cancellationToken = default)
     {
         var link = await ResolveAsync(code, cancellationToken).ConfigureAwait(false);
         if (link is null)
@@ -52,10 +83,12 @@ public sealed class LinkService(ILinkRepository repository, ICodeGenerator codeG
             return null;
         }
 
-        // v0.1 simplification: read-modify-write on the link row. Correct for one visitor at a time, but
-        // concurrent redirects can overwrite each other's count. Revisited in CR-002 (brownfield scenario).
-        link.RegisterClick();
-        await repository.UpdateAsync(link, cancellationToken).ConfigureAwait(false);
-        return link;
+        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var perDay = await statsQuery.GetClicksPerDayAsync(link.Id, today.AddDays(-(StatsDays - 1)), cancellationToken)
+            .ConfigureAwait(false);
+        var referrers = await statsQuery.GetTopReferrersAsync(link.Id, TopReferrerCount, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new LinkStats(link, perDay, referrers);
     }
 }

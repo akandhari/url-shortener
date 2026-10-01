@@ -16,6 +16,13 @@ GET {{host}}/api/links/{{create.response.body.$.code}}
 ### Follow the short link (302 to the target; counts a click)
 GET {{host}}/{{create.response.body.$.code}}
 
+### Follow the short link as if coming from another site (referrer host is recorded)
+GET {{host}}/{{create.response.body.$.code}}
+Referer: https://news.example.com/article?id=42
+
+### Click stats: per UTC day (last 30 days) and top referrers
+GET {{host}}/api/links/{{create.response.body.$.code}}/stats
+
 ### Invalid URL: unsafe scheme (400, ProblemDetails)
 POST {{host}}/api/links
 Content-Type: application/json

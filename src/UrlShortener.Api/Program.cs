@@ -5,6 +5,8 @@ using UrlShortener.Api.Health;
 using UrlShortener.Api.StaticPage;
 using UrlShortener.Core.Links;
 using UrlShortener.Infrastructure;
+using UrlShortener.Infrastructure.Clicks;
+using UrlShortener.Infrastructure.Redirects;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,8 @@ builder.Services.AddScoped<LinkService>();
 
 // Persistence
 builder.Services.AddInfrastructure(connectionString);
+builder.Services.Configure<ClickRecordingOptions>(builder.Configuration.GetSection(ClickRecordingOptions.SectionName));
+builder.Services.Configure<RedirectCacheOptions>(builder.Configuration.GetSection(RedirectCacheOptions.SectionName));
 
 // HTTP
 builder.Services.Configure<ShortLinkOptions>(builder.Configuration.GetSection(ShortLinkOptions.SectionName));

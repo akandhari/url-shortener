@@ -20,11 +20,15 @@ public static class LinkEndpoints
             .WithName("GetLink")
             .WithSummary("Get a short link's details.");
 
+        api.MapGet("/{code}/stats", GetStatsAsync)
+            .WithName("GetLinkStats")
+            .WithSummary("Clicks per UTC day (last 30 days) and top 5 referring sites.");
+
         // Literal routes (/api, /health, /openapi, /scalar) take precedence over this catch-all by routing rules.
         app.MapGet("/{code}", RedirectAsync)
             .WithName("FollowLink")
             .WithTags("Redirect")
-            .WithSummary("Redirect to the target URL (302) and count the click.");
+            .WithSummary("Redirect to the target URL (302) and record the click.");
 
         return app;
     }
@@ -67,15 +71,26 @@ public static class LinkEndpoints
             : TypedResults.Ok(LinkResponse.From(link, options.Value.ResolveBaseUrl(httpRequest)));
     }
 
-    private static async Task<Results<RedirectHttpResult, ProblemHttpResult>> RedirectAsync(
+    private static async Task<Results<Ok<LinkStatsResponse>, ProblemHttpResult>> GetStatsAsync(
         string code,
         LinkService links,
         CancellationToken cancellationToken)
     {
-        var link = await links.VisitAsync(code, cancellationToken);
+        var stats = await links.GetStatsAsync(code, cancellationToken);
+        return stats is null ? NotFound() : TypedResults.Ok(LinkStatsResponse.From(stats));
+    }
+
+    private static async Task<Results<RedirectHttpResult, ProblemHttpResult>> RedirectAsync(
+        string code,
+        LinkService links,
+        HttpRequest httpRequest,
+        CancellationToken cancellationToken)
+    {
+        Uri.TryCreate(httpRequest.Headers.Referer.ToString(), UriKind.Absolute, out var referrer);
+        var target = await links.VisitAsync(code, referrer, cancellationToken);
 
         // 302 (not 301): browsers must not cache the redirect, or repeat clicks would never be counted.
-        return link is null ? NotFound() : TypedResults.Redirect(link.TargetUrl.AbsoluteUri, permanent: false);
+        return target is null ? NotFound() : TypedResults.Redirect(target.TargetUrl.AbsoluteUri, permanent: false);
     }
 
     private static ProblemHttpResult NotFound() =>

@@ -9,7 +9,4 @@ public interface ILinkRepository
     Task<bool> TryAddAsync(ShortLink link, CancellationToken cancellationToken);
 
     Task<ShortLink?> FindByCodeAsync(string code, CancellationToken cancellationToken);
-
-    /// <summary>Saves the current state of an existing link.</summary>
-    Task UpdateAsync(ShortLink link, CancellationToken cancellationToken);
 }

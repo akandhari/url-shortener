@@ -77,12 +77,26 @@ public sealed class EfLinkRepositoryTests : IDisposable
         using var db = _database.CreateContext();
         var repository = new EfLinkRepository(db);
         await repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Created), default);
-        var service = new LinkService(repository, new SequenceCodeGenerator("aaaaaaa", "bbbbbbb"), TimeProvider.System);
+        var service = new LinkService(
+            repository, new SequenceCodeGenerator("aaaaaaa", "bbbbbbb"), new NoLookup(), new IgnoreClicks(), new EfLinkStatsQuery(db), TimeProvider.System);
 
         var result = await service.CreateAsync("https://example.com");
 
         Assert.True(result.IsSuccess);
         Assert.Equal("bbbbbbb", result.Link.Code);
+    }
+
+    private sealed class NoLookup : IRedirectLookup
+    {
+        public Task<RedirectTarget?> FindAsync(string code, CancellationToken cancellationToken) =>
+            Task.FromResult<RedirectTarget?>(null);
+    }
+
+    private sealed class IgnoreClicks : IClickRecorder
+    {
+        public void Record(ClickEvent click)
+        {
+        }
     }
 
     private sealed class SequenceCodeGenerator(params string[] codes) : ICodeGenerator

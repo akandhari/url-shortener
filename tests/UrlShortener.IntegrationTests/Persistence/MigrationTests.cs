@@ -12,7 +12,11 @@ public class MigrationTests
         using var db = database.CreateContext();
 
         Assert.Empty(db.Database.GetPendingMigrations());
-        Assert.Contains("InitialCreate", db.Database.GetAppliedMigrations().Single(), StringComparison.Ordinal);
+        var applied = db.Database.GetAppliedMigrations().ToList();
+        Assert.Collection(
+            applied,
+            first => Assert.EndsWith("_InitialCreate", first, StringComparison.Ordinal),
+            second => Assert.EndsWith("_AddClickEvents", second, StringComparison.Ordinal));
     }
 
     [Fact]
