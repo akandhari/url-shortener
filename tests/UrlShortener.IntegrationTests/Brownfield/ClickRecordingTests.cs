@@ -76,6 +76,22 @@ public sealed class ClickRecordingTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public void Dropped_clicks_are_logged_once_then_once_per_thousand_not_once_each()
+    {
+        var buffer = new ClickBuffer(Options.Create(new ClickRecordingOptions { QueueCapacity = 1 }));
+        var log = new CapturingLogger<QueuedClickRecorder>();
+        var recorder = new QueuedClickRecorder(buffer, log);
+
+        for (var i = 0; i < 2_501; i++)   // 1 fits, 2,500 are dropped
+        {
+            recorder.Record(new ClickEvent(1, DateTimeOffset.UnixEpoch, null));
+        }
+
+        Assert.Equal(2_500, buffer.DroppedCount);
+        Assert.Equal(3, log.Entries.Count(e => e.Level == LogLevel.Warning));   // drop 1, 1,000 and 2,000
+    }
+
+    [Fact]
     public async Task Stopping_the_writer_flushes_queued_clicks()
     {
         using var database = new SqliteTestDatabase();
