@@ -88,7 +88,44 @@ flowchart LR
 | AB-06 | NFR-5 | none | none |
 
 ## 8. Execution
-*Filled in as the work happens.*
+Each spec's Iterations table has the detail; the moments that shaped the result:
+
+| Task | What happened |
+|---|---|
+| AB-02 | Before designing, I **probed how .NET parses tricky hosts**: decimal (`2130706433`), hex (`0x7f000001`), octal and short (`127.1`) forms all normalise to `127.0.0.1`. So the rule checks the parsed address, with no hand-written IP parser. A deliberate break of one rule failed exactly the two dependent cases of the 38-case matrix. |
+| AB-03 | A half-filled rate-limit config would have bound a limit of 0 and crashed on the first request; added a **startup check** with a clear message, verified by starting the app with a bad value. |
+| AB-03b | Nearly every integration test failed at start-up: a **static field initialisation-order bug** (a default instance built before the word list it reads). Allowing aliases also changed what "malformed" means, so 5 tests were updated deliberately. |
+| AB-04 | The upgrade test from BF-09 asserted the `Links` schema was identical; AB-04 adds nullable columns on purpose, so the test now asserts the real rollback claim: every v0.1 column survives unchanged. |
+| AB-05 | Headers applied before error handling, so 404s and ProblemDetails carry them too. |
+| (all) | I caught myself writing `ToUpperInvariant().ToLowerInvariant()` three times to dodge an analyzer rule that turned out not to fire, plus a convoluted enum-to-string mapping. All simplified before commit. |
 
 ## 9. Validation
-*Filled in at close-out (AB-06).*
+
+| Control | Evidence |
+|---|---|
+| Hardened URL rules | 38-case attack matrix (credentials, every loopback notation, private/link-local/CGNAT/metadata/multicast/broadcast, IPv4-in-IPv6, internal names, own host, denylist) + 8 accepted public cases; mutation check |
+| Rate limits | N+1-th request → 429 + `Retry-After` + ProblemDetails for each policy; policies independent; page and health never limited; real app: 10 × 201 then 429 |
+| Aliases | Rules matrix (21 cases); 201 / 400 / 409 over HTTP; redirect, details and stats work for aliases |
+| Expiry and disable | Expired link → 410 even after being cached; disable with key → 410 even after being cached; 401 / 403 / 404 cases; stats kept; real app flow 302 → 401 → 204 → 410 |
+| Security headers | Present on the page, static files, health, 404, API, OpenAPI document and redirects |
+| Upgrade | v0.1 database → latest: data intact, v0.1 columns unchanged, old links active |
+| Gates | `verify.ps1` green locally and in CI: 132 unit + 82 integration tests |
+
+## 10. Known limitations
+| Limitation | Why accepted | Next step |
+|---|---|---|
+| No reputation check of targets | Needs an external service | Safe Browsing / Web Risk at creation + periodic re-check |
+| Host names resolving to private IPs pass | We never fetch targets | Re-evaluate if previews are added |
+| Rate limits and cache are per instance | Single-node prototype | Redis-backed limiter and cache, or limits at the proxy |
+| Client IP behind a proxy is the proxy's | Deployment-specific | Forwarded headers from trusted proxies only |
+| Admin key is a shared secret | Stopgap without accounts | Real authentication and roles |
+| Word lists for aliases are never complete | Configurable; reputation checks are the real defence | Abuse reporting + moderation |
+| `/scalar` has no Content-Security-Policy | It needs inline scripts | Restrict or disable API docs in production |
+
+## 11. Sign-offs (at scenario review)
+- Security rules: hardened URL validation (AB-02), alias rules (AB-03b), security headers + HSTS (AB-05)
+- Policy: rate-limit thresholds (AB-03)
+- API contract: optional `alias` (400/409), optional `expiresAt`, 410 Gone, `DELETE /api/links/{code}`, new details
+  fields `expiresAt` / `disabledAt` / `status` (AB-03b, AB-04), all additive
+- Schema: `AddExpiryAndDisable` (two nullable columns, AB-04)
+- Admin key mechanism: configuration-only secret, constant-time comparison (AB-04)

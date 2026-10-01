@@ -23,6 +23,40 @@ Referer: https://news.example.com/article?id=42
 ### Click stats: per UTC day (last 30 days) and top referrers
 GET {{host}}/api/links/{{create.response.body.$.code}}/stats
 
+### Custom alias (201; same alias again → 409)
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ "url": "https://example.com/fall-sale", "alias": "fall-sale-2026" }
+
+### Link that expires (expired → 410 Gone)
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ "url": "https://example.com/flash-offer", "expiresAt": "2026-12-31T23:59:59Z" }
+
+### Disable a link (needs Admin:ApiKey configured, e.g. env var Admin__ApiKey)
+DELETE {{host}}/api/links/{{create.response.body.$.code}}
+X-Admin-Key: <your admin key>
+
+### Abuse: credentials in the URL (400)
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ "url": "https://paypal.com@evil.example/" }
+
+### Abuse: loopback written as a number (400)
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ "url": "http://2130706433/admin" }
+
+### Abuse: impersonating alias (400)
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ "url": "https://example.com", "alias": "secure-login" }
+
 ### Invalid URL: unsafe scheme (400, ProblemDetails)
 POST {{host}}/api/links
 Content-Type: application/json
