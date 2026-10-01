@@ -6,7 +6,7 @@
 | **Depends on** | AB-01 |
 | **Requirements** | FR-7, NFR-3 |
 | **Needs my sign-off?** | Reviewed with the scenario: rate-limit thresholds (a policy decision) |
-| **Status** | In progress |
+| **Status** | Done |
 
 ## Goal
 Slow down mass link creation and code enumeration from a single client, without affecting normal use, and tell the
@@ -55,10 +55,10 @@ are not limited.
 |---|---|---|---|
 | 1 | Initial spec above | Token-bucket policies `create` / `redirect` / `lookup` per client IP from configuration, 429 + `Retry-After` + ProblemDetails, policies attached per endpoint, test factory with generous defaults, 7 tests | Analyzer flagged an unused `using`. Green. |
 | 2 | What if the config is half-filled? | A missing `PermitLimit` binds to 0, and the limiter would throw on the first request | **Added a startup check** with a clear message ("RateLimits:Create needs PermitLimit > 0 …"); verified by starting the app with a bad value. |
-| 3 | Real app, default config | 10 × 201 then 429 with `Retry-After: 60` and ProblemDetails | Pending scenario review. |
+| 3 | Real app, default config | 10 × 201 then 429 with `Retry-After: 60` and ProblemDetails | Approved at scenario review (PR #3). |
 
 ## Outcome
-- **Decision:**
-- **AI-LOG row:**
-- **Commit(s):**
-- **Sign-off:** scenario review
+- **Decision:** Changed (see iterations)
+- **AI-LOG row:** #21
+- **Commit(s):** see PR #3
+- **Sign-off:** SIGNOFF #11, approved at scenario review (PR #3)

@@ -122,7 +122,7 @@ Each spec's Iterations table has the detail; the moments that shaped the result:
 | Word lists for aliases are never complete | Configurable; reputation checks are the real defence | Abuse reporting + moderation |
 | `/scalar` has no Content-Security-Policy | It needs inline scripts | Restrict or disable API docs in production |
 
-## 11. Sign-offs (at scenario review)
+## 11. Sign-offs (approved at scenario review, PR #3: SIGNOFF #10–#14)
 - Security rules: hardened URL validation (AB-02), alias rules (AB-03b), security headers + HSTS (AB-05)
 - Policy: rate-limit thresholds (AB-03)
 - API contract: optional `alias` (400/409), optional `expiresAt`, 410 Gone, `DELETE /api/links/{code}`, new details

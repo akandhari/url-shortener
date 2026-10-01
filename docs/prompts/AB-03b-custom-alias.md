@@ -6,7 +6,7 @@
 | **Depends on** | AB-02 |
 | **Requirements** | FR-8, FR-4, NFR-3 |
 | **Needs my sign-off?** | Reviewed with the scenario: API contract (new optional field, 409) and alias rules |
-| **Status** | In progress |
+| **Status** | Done |
 
 ## Goal
 Let a creator choose a readable code (`/fall-sale`) without letting anyone hijack our routes or impersonate
@@ -58,10 +58,10 @@ sensitive pages (`/secure-login`).
 |---|---|---|---|
 | 1 | Initial spec above | `AliasRules` + `AliasPolicy` (source-generated regex, reserved words, whole-part word match), `CreateAsync(url, alias)` with 400/409, `ShortCode.IsWellFormed` = generated OR alias shape, optional field on the page | Wrote `ToUpperInvariant().ToLowerInvariant()` a third time to dodge CA1308; checked: **the rule doesn't fire**, so it was never needed. Plain `ToLowerInvariant`. Analyzer CA1716: `Alias` is a VB keyword → `AliasRules`. |
 | 2 | Run the tests | Almost every integration test failed at start-up: `TypeInitializationException` in `AliasPolicy` | **Static fields initialise in written order:** `Default = new(...)` was declared before the word list it reads, so the list was null. Moved the list first, with a comment. 5 unit tests failed as expected: inputs like `abc-123` were "malformed", now valid alias shapes; split into `IsGenerated` vs `IsWellFormed` tests. |
-| 3 | Alias tests | One failure: `api` returned the length message, not "reserved" | Test data, not a bug: 3-character words are already stopped by the length rule. Tested the reserved rule with `admin`. Green: 125 unit, 67 integration. Pending scenario review. |
+| 3 | Alias tests | One failure: `api` returned the length message, not "reserved" | Test data, not a bug: 3-character words are already stopped by the length rule. Tested the reserved rule with `admin`. Green: 125 unit, 67 integration. Approved at scenario review (PR #3). |
 
 ## Outcome
-- **Decision:**
-- **AI-LOG row:**
-- **Commit(s):**
-- **Sign-off:** scenario review
+- **Decision:** Changed (see iterations)
+- **AI-LOG row:** #22
+- **Commit(s):** see PR #3
+- **Sign-off:** SIGNOFF #10, #12, approved at scenario review (PR #3)

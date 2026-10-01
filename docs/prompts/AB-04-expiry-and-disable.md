@@ -6,7 +6,7 @@
 | **Depends on** | AB-01, BF-08 (redirect cache) |
 | **Requirements** | FR-9, FR-4, NFR-3 |
 | **Needs my sign-off?** | Reviewed with the scenario: schema, API contract, admin key |
-| **Status** | In progress |
+| **Status** | Done |
 
 ## Goal
 A bad link can be taken down, and a creator can make a link expire, so abusive links don't live forever. Visitors
@@ -55,10 +55,10 @@ are told the link is gone (not that it never existed), and its analytics are kep
 |---|---|---|---|
 | 1 | Initial spec above | `LinkStatus` + status rules, `ExpiresAt`/`DisabledAt`, `VisitResult` (redirect / gone / not found), expiry window check, `DisableAsync` (atomic `ExecuteUpdate`, cache invalidation), shared `UtcTicksConverter`, migration `AddExpiryAndDisable` (two nullable columns), `AdminKey` (constant-time compare), `DELETE /api/links/{code}`, `status`/`expiresAt`/`disabledAt` in details, page "Expires" choice | Simplified a convoluted status mapping (enum → string → upper case → match) to a plain `switch` before running it; removed an unused `using`. Moving existing dates to the shared converter changed nothing in the schema (confirmed by the generated migration). |
 | 2 | Run the tests | Fakes needed the new interface members; `MigrationTests` listed 2 migrations, now 3; BF-09's upgrade test asserted the `Links` schema is identical | Updated deliberately: the upgrade test now asserts every v0.1 column is still there unchanged and old links stay active, which is the real rollback-safety claim (new columns are nullable and unselected by older versions). |
-| 3 | Real app with an admin key | 302 → DELETE without key 401 → with key 204 → 410 "disabled", details `status: disabled`, no errors logged | Green: 132 unit, 75 integration. Pending scenario review. |
+| 3 | Real app with an admin key | 302 → DELETE without key 401 → with key 204 → 410 "disabled", details `status: disabled`, no errors logged | Green: 132 unit, 75 integration. Approved at scenario review (PR #3). |
 
 ## Outcome
-- **Decision:**
-- **AI-LOG row:**
-- **Commit(s):**
-- **Sign-off:** scenario review
+- **Decision:** Changed (see iterations)
+- **AI-LOG row:** #23
+- **Commit(s):** see PR #3
+- **Sign-off:** SIGNOFF #12, #13, #14, approved at scenario review (PR #3)

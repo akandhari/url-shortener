@@ -6,7 +6,7 @@
 | **Depends on** | AB-01 |
 | **Requirements** | FR-6, NFR-3 |
 | **Needs my sign-off?** | Reviewed with the scenario: security rules |
-| **Status** | In progress |
+| **Status** | Done |
 
 ## Goal
 Refuse to create links that deceive visitors, point into private networks, or loop through this service, with a
@@ -56,10 +56,10 @@ clear reason for each rejection.
 |---|---|---|---|
 | 0 | Before the spec: probe how .NET `Uri` parses tricky hosts | Decimal/hex/octal/short IPv4 all normalise to `127.0.0.1`; `user@host` → `UserInfo`; IPv4-mapped IPv6 kept as IPv6 | Shaped the design: check the *parsed* host, no custom IP parser; unwrap IPv4-mapped addresses. |
 | 1 | Initial spec above | `NetworkAddress.IsPrivateOrLocal`, `TargetUrlPolicy` (own hosts + denylist, IDN-normalised), new rules in `TargetUrlValidator`, policy from configuration, 38-case unit matrix, 5 API tests | Removed a pointless `ToUpperInvariant()` before `IdnHost` (same slip as in BF-06). All cases passed first time. |
-| 2 | Does the matrix actually bite? | Disabled the `192.168.0.0/16` rule on purpose | Exactly the two dependent cases failed (plain and IPv4-in-IPv6); rule restored. Pending scenario review. |
+| 2 | Does the matrix actually bite? | Disabled the `192.168.0.0/16` rule on purpose | Exactly the two dependent cases failed (plain and IPv4-in-IPv6); rule restored. Approved at scenario review (PR #3). |
 
 ## Outcome
-- **Decision:**
-- **AI-LOG row:**
-- **Commit(s):**
-- **Sign-off:** scenario review
+- **Decision:** Changed (see iterations)
+- **AI-LOG row:** #20
+- **Commit(s):** see PR #3
+- **Sign-off:** SIGNOFF #10, approved at scenario review (PR #3)
