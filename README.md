@@ -4,6 +4,19 @@
 
 A URL shortener service in ASP.NET Core (.NET 10), built with AI assistance under explicit engineering control.
 
+## Review this repo in 10 minutes
+| What the brief asks | Start here |
+|---|---|
+| Final engineering summary (plan, artifacts, risks, assumptions, limitations) | [docs/ENGINEERING-SUMMARY.md](docs/ENGINEERING-SUMMARY.md) |
+| Requirement understanding | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md): FRs, NFRs, ambiguities → assumptions |
+| Architecture (components, tools, execution approach, control flow, decisions) | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/adr/](docs/adr/) |
+| Three scenarios with decomposition, execution, validation | [Greenfield](docs/scenarios/01-greenfield.md) · [Brownfield](docs/scenarios/02-brownfield.md) · [Ambiguous](docs/scenarios/03-ambiguous.md) |
+| Codebase reasoning on a change | [Brownfield impact analysis](docs/scenarios/02-brownfield.md#3-impact-analysis-of-v010), then `git log --oneline v0.1.0..v0.2.0`: the red test, the refactor, the fix |
+| AI-assisted execution and traceability | [AI usage policy](docs/AI-USAGE-POLICY.md) → [task specs](docs/prompts/) (Iterations tables) → [AI-LOG](docs/AI-LOG.md) (kept / changed / rejected) → commit trailers |
+| Quality gates, human sign-off | [scripts/verify.ps1](scripts/verify.ps1), [CI](.github/workflows/ci.yml), [SIGNOFF.md](docs/SIGNOFF.md), `Signed-off-by` on scenario merges |
+| Testing, risks, traceability | [TESTING.md](docs/TESTING.md) · [RISKS.md](docs/RISKS.md) · [TRACEABILITY.md](docs/TRACEABILITY.md) |
+| History | `git log --graph --oneline`: one commit per task, one branch + PR + tag per scenario |
+
 > **v0.1.0 (greenfield)**: create, redirect, details, web page. **v0.2.0 (brownfield)**: click analytics.
 > **v0.3.0 (ambiguous)**: abuse protection (URL rules, rate limits, custom aliases, expiry, admin disable, security headers).
 > Requirements: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) ·
@@ -15,6 +28,13 @@ A URL shortener service in ASP.NET Core (.NET 10), built with AI assistance unde
 ## Run it
 ```powershell
 dotnet run --project src/UrlShortener.Api
+```
+
+Or with Docker (non-root container, SQLite kept on a volume):
+```powershell
+docker build -t url-shortener .
+docker run -p 8080:8080 -v urlsh-data:/data url-shortener
+# then open http://localhost:8080/
 ```
 Then open:
 
