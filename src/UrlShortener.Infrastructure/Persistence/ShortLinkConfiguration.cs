@@ -26,9 +26,9 @@ internal sealed class ShortLinkConfiguration : IEntityTypeConfiguration<ShortLin
             .HasMaxLength(TargetUrlValidator.MaxLength)
             .HasConversion(url => url.AbsoluteUri, text => new Uri(text, UriKind.Absolute));
 
-        // SQLite has no date-time-offset type, and EF Core cannot sort or compare DateTimeOffset stored as text.
-        // Stored as UTC ticks (a number) so ordering and per-day grouping (BF-07) work in SQL.
-        builder.Property(l => l.CreatedAt)
-            .HasConversion(value => value.UtcTicks, ticks => new DateTimeOffset(ticks, TimeSpan.Zero));
+        // Dates as UTC ticks (see UtcTicksConverter) so ordering and grouping work in SQL.
+        builder.Property(l => l.CreatedAt).HasConversion(UtcTicksConverter.Instance);
+        builder.Property(l => l.ExpiresAt).HasConversion(UtcTicksConverter.Instance);
+        builder.Property(l => l.DisabledAt).HasConversion(UtcTicksConverter.Instance);
     }
 }

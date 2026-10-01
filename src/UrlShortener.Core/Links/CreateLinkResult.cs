@@ -9,6 +9,7 @@ public enum CreateLinkError
     NoUniqueCode,
     InvalidAlias,
     AliasTaken,
+    InvalidExpiry,
 }
 
 /// <summary>

@@ -14,8 +14,7 @@ internal sealed class ClickEventConfiguration : IEntityTypeConfiguration<ClickEv
         builder.HasOne<ShortLink>().WithMany().HasForeignKey(c => c.LinkId).OnDelete(DeleteBehavior.Cascade);
 
         // Same storage as ShortLink.CreatedAt: UTC ticks, so SQL can group clicks by day.
-        builder.Property(c => c.OccurredAt)
-            .HasConversion(value => value.UtcTicks, ticks => new DateTimeOffset(ticks, TimeSpan.Zero));
+        builder.Property(c => c.OccurredAt).HasConversion(UtcTicksConverter.Instance);
 
         builder.Property(c => c.ReferrerHost).HasMaxLength(ClickEvent.MaxReferrerHostLength);
 

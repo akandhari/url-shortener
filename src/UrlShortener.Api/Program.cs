@@ -35,6 +35,7 @@ builder.Services.Configure<RedirectCacheOptions>(builder.Configuration.GetSectio
 
 // HTTP
 builder.Services.Configure<ShortLinkOptions>(builder.Configuration.GetSection(ShortLinkOptions.SectionName));
+builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.SectionName));
 builder.Services.AddProblemDetails();
 
 // A malformed request body is the caller's fault: keep its 400 instead of turning it into a 500.

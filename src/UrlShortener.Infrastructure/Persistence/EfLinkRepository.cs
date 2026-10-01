@@ -29,6 +29,17 @@ internal sealed class EfLinkRepository(AppDbContext db) : ILinkRepository
     public Task<ShortLink?> FindByCodeAsync(string code, CancellationToken cancellationToken) =>
         db.Links.AsNoTracking().SingleOrDefaultAsync(l => l.Code == code, cancellationToken);
 
+    public async Task<bool> DisableAsync(string code, DateTimeOffset disabledAt, CancellationToken cancellationToken)
+    {
+        // One atomic statement; the first disable time is kept when called twice.
+        var updated = await db.Links
+            .Where(l => l.Code == code && l.DisabledAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.DisabledAt, disabledAt), cancellationToken)
+            .ConfigureAwait(false);
+
+        return updated > 0 || await db.Links.AnyAsync(l => l.Code == code, cancellationToken).ConfigureAwait(false);
+    }
+
     private static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException is SqliteException { SqliteErrorCode: SqliteConstraint, SqliteExtendedErrorCode: SqliteConstraintUnique };
 }

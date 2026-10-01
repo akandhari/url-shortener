@@ -23,6 +23,11 @@ public static class LinkEndpoints
             .WithName("GetLink")
             .WithSummary("Get a short link's details.");
 
+        api.MapDelete("/{code}", DisableAsync)
+            .RequireRateLimiting(RateLimiting.LookupPolicy)
+            .WithName("DisableLink")
+            .WithSummary("Disable a link (410 Gone from then on). Requires the X-Admin-Key header.");
+
         api.MapGet("/{code}/stats", GetStatsAsync)
             .RequireRateLimiting(RateLimiting.LookupPolicy)
             .WithName("GetLinkStats")
@@ -42,10 +47,11 @@ public static class LinkEndpoints
         CreateLinkRequest request,
         LinkService links,
         IOptions<ShortLinkOptions> options,
+        TimeProvider time,
         HttpRequest httpRequest,
         CancellationToken cancellationToken)
     {
-        var result = await links.CreateAsync(request.Url, request.Alias, cancellationToken);
+        var result = await links.CreateAsync(request.Url, request.Alias, request.ExpiresAt, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -57,13 +63,15 @@ public static class LinkEndpoints
                     title: "Invalid alias", detail: result.Message, statusCode: StatusCodes.Status400BadRequest),
                 CreateLinkError.AliasTaken => TypedResults.Problem(
                     title: "Alias taken", detail: result.Message, statusCode: StatusCodes.Status409Conflict),
+                CreateLinkError.InvalidExpiry => TypedResults.Problem(
+                    title: "Invalid expiry", detail: result.Message, statusCode: StatusCodes.Status400BadRequest),
                 _ => TypedResults.Problem(
                     title: "Could not create the link", detail: result.Message,
                     statusCode: StatusCodes.Status503ServiceUnavailable),
             };
         }
 
-        var response = LinkResponse.From(result.Link, options.Value.ResolveBaseUrl(httpRequest));
+        var response = LinkResponse.From(result.Link, options.Value.ResolveBaseUrl(httpRequest), time.GetUtcNow());
         return TypedResults.Created($"/api/links/{result.Link.Code}", response);
     }
 
@@ -71,13 +79,37 @@ public static class LinkEndpoints
         string code,
         LinkService links,
         IOptions<ShortLinkOptions> options,
+        TimeProvider time,
         HttpRequest httpRequest,
         CancellationToken cancellationToken)
     {
+        // Gone links still return their details (with status), so owners can see what happened.
         var link = await links.ResolveAsync(code, cancellationToken);
         return link is null
             ? NotFound()
-            : TypedResults.Ok(LinkResponse.From(link, options.Value.ResolveBaseUrl(httpRequest)));
+            : TypedResults.Ok(LinkResponse.From(link, options.Value.ResolveBaseUrl(httpRequest), time.GetUtcNow()));
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> DisableAsync(
+        string code,
+        LinkService links,
+        IOptions<AdminOptions> admin,
+        HttpRequest httpRequest,
+        CancellationToken cancellationToken)
+    {
+        switch (AdminKey.Verify(httpRequest, admin.Value))
+        {
+            case AdminKey.Check.NotConfigured:
+                return TypedResults.Problem(
+                    title: "Admin actions are switched off", detail: "No admin key is configured on this server.",
+                    statusCode: StatusCodes.Status403Forbidden);
+            case AdminKey.Check.Denied:
+                return TypedResults.Problem(
+                    title: "Admin key required", detail: $"Send a valid {AdminKey.HeaderName} header.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        return await links.DisableAsync(code, cancellationToken) ? TypedResults.NoContent() : NotFound();
     }
 
     private static async Task<Results<Ok<LinkStatsResponse>, ProblemHttpResult>> GetStatsAsync(
@@ -96,10 +128,19 @@ public static class LinkEndpoints
         CancellationToken cancellationToken)
     {
         Uri.TryCreate(httpRequest.Headers.Referer.ToString(), UriKind.Absolute, out var referrer);
-        var target = await links.VisitAsync(code, referrer, cancellationToken);
+        var visit = await links.VisitAsync(code, referrer, cancellationToken);
 
-        // 302 (not 301): browsers must not cache the redirect, or repeat clicks would never be counted.
-        return target is null ? NotFound() : TypedResults.Redirect(target.TargetUrl.AbsoluteUri, permanent: false);
+        return visit.Outcome switch
+        {
+            // 302 (not 301): browsers must not cache the redirect, or repeat clicks would never be counted.
+            VisitOutcome.Redirect => TypedResults.Redirect(visit.Target!.TargetUrl.AbsoluteUri, permanent: false),
+
+            // 410, not 404: the link existed and was deliberately ended.
+            VisitOutcome.Gone => TypedResults.Problem(
+                title: visit.GoneBecause == LinkStatus.Disabled ? "This link has been disabled" : "This link has expired",
+                statusCode: StatusCodes.Status410Gone),
+            _ => NotFound(),
+        };
     }
 
     private static ProblemHttpResult NotFound() =>

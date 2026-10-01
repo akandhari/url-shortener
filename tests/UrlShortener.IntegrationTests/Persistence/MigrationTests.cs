@@ -16,7 +16,8 @@ public class MigrationTests
         Assert.Collection(
             applied,
             first => Assert.EndsWith("_InitialCreate", first, StringComparison.Ordinal),
-            second => Assert.EndsWith("_AddClickEvents", second, StringComparison.Ordinal));
+            second => Assert.EndsWith("_AddClickEvents", second, StringComparison.Ordinal),
+            third => Assert.EndsWith("_AddExpiryAndDisable", third, StringComparison.Ordinal));
     }
 
     [Fact]

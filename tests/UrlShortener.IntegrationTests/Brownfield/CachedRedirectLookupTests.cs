@@ -71,5 +71,8 @@ public sealed class CachedRedirectLookupTests : IDisposable
             FindCalls++;
             return Task.FromResult(_links.SingleOrDefault(l => l.Code == code));
         }
+
+        public Task<bool> DisableAsync(string code, DateTimeOffset disabledAt, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }
