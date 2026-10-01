@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using UrlShortener.Core.Links;
+using UrlShortener.Infrastructure.Clicks;
 using UrlShortener.Infrastructure.Persistence;
 
 namespace UrlShortener.Infrastructure;
@@ -13,6 +14,12 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<ILinkRepository, EfLinkRepository>();
+
+        // Click recording: redirects queue clicks; one background writer stores them in batches.
+        services.AddOptions<ClickRecordingOptions>();
+        services.AddSingleton<ClickBuffer>();
+        services.AddSingleton<IClickRecorder, QueuedClickRecorder>();
+        services.AddHostedService<ClickWriterService>();
         return services;
     }
 

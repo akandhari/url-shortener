@@ -23,4 +23,19 @@ public sealed class ClickEvent
 
     /// <summary>Host of the Referer header (e.g. news.example.com); null when the visitor came directly.</summary>
     public string? ReferrerHost { get; private set; }
+
+    /// <summary>
+    /// Keeps only the host of an absolute http(s) referrer, lower-cased. The full referrer URL can carry tokens or
+    /// personal data, so it is never stored.
+    /// </summary>
+    public static string? ReferrerHostFrom(Uri? referrer)
+    {
+        if (referrer is not { IsAbsoluteUri: true } || (referrer.Scheme != Uri.UriSchemeHttp && referrer.Scheme != Uri.UriSchemeHttps))
+        {
+            return null;
+        }
+
+        var host = referrer.IdnHost;   // Uri already normalises http(s) hosts to lower case (and IdnHost to punycode)
+        return host.Length is > 0 and <= MaxReferrerHostLength ? host : null;
+    }
 }

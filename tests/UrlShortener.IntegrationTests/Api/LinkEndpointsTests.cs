@@ -67,8 +67,9 @@ public sealed class LinkEndpointsTests(ApiFactory factory) : IClassFixture<ApiFa
         Assert.Equal(HttpStatusCode.Found, redirect.StatusCode);
         Assert.Equal(new Uri("https://example.com/target?x=1"), redirect.Headers.Location);
 
-        using var details = await _client.GetAsync(new Uri($"/api/links/{code}", UriKind.Relative));
-        Assert.Equal(1, (await ReadJsonAsync(details)).GetProperty("clickCount").GetInt64());
+        // Since CR-002 (BF-06) clicks are written in the background, so the count is eventually consistent:
+        // wait for it instead of reading it immediately.
+        Assert.Equal(1, await LinkApi.WaitForClickCountAsync(_client, code, expected: 1));
     }
 
     [Theory]

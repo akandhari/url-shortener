@@ -24,7 +24,7 @@ public static class LinkEndpoints
         app.MapGet("/{code}", RedirectAsync)
             .WithName("FollowLink")
             .WithTags("Redirect")
-            .WithSummary("Redirect to the target URL (302) and count the click.");
+            .WithSummary("Redirect to the target URL (302) and record the click.");
 
         return app;
     }
@@ -70,9 +70,11 @@ public static class LinkEndpoints
     private static async Task<Results<RedirectHttpResult, ProblemHttpResult>> RedirectAsync(
         string code,
         LinkService links,
+        HttpRequest httpRequest,
         CancellationToken cancellationToken)
     {
-        var link = await links.VisitAsync(code, cancellationToken);
+        Uri.TryCreate(httpRequest.Headers.Referer.ToString(), UriKind.Absolute, out var referrer);
+        var link = await links.VisitAsync(code, referrer, cancellationToken);
 
         // 302 (not 301): browsers must not cache the redirect, or repeat clicks would never be counted.
         return link is null ? NotFound() : TypedResults.Redirect(link.TargetUrl.AbsoluteUri, permanent: false);

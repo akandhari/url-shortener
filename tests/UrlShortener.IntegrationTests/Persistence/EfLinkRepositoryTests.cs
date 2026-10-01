@@ -78,12 +78,19 @@ public sealed class EfLinkRepositoryTests : IDisposable
         var repository = new EfLinkRepository(db);
         await repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Created), default);
         var service = new LinkService(
-            repository, new SequenceCodeGenerator("aaaaaaa", "bbbbbbb"), new ReadModifyWriteClickRecorder(repository), TimeProvider.System);
+            repository, new SequenceCodeGenerator("aaaaaaa", "bbbbbbb"), new IgnoreClicks(), TimeProvider.System);
 
         var result = await service.CreateAsync("https://example.com");
 
         Assert.True(result.IsSuccess);
         Assert.Equal("bbbbbbb", result.Link.Code);
+    }
+
+    private sealed class IgnoreClicks : IClickRecorder
+    {
+        public void Record(ClickEvent click)
+        {
+        }
     }
 
     private sealed class SequenceCodeGenerator(params string[] codes) : ICodeGenerator

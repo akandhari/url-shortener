@@ -146,5 +146,22 @@ Same result in 3 out of 3 runs. All 50 redirects returned 302, but the count is 
 `ClickCount = 0` before any of them wrote, and each wrote back `1`. This is the lost update from 3.2, in its worst form.
 The test is committed **failing on purpose**, so the history shows red before green.
 
+### BF-04: refactor with no behaviour change
+"Count the click" moved behind `IClickRecorder`; the only implementation was the v0.1 logic, unchanged. Result:
+everything green **except BF-03, still red**, which is what a pure refactor should look like.
+
+### BF-05: schema
+`ClickEvents` table, foreign key to `Links`, index `(LinkId, OccurredAt)`. The migration only adds; nothing existing changes.
+
+### BF-06: the fix
+Redirect → `ClickEvent` into a bounded in-memory buffer → one background writer inserts events in batches and runs
+`UPDATE Links SET ClickCount = ClickCount + n` inside the same transaction. **BF-03 turned green (50/50) and stayed
+green in 5 repeated runs.** The characterization tests passed without changes. The one deliberate test change: the
+GF-04 test that read the count immediately after a redirect now waits for it, because counts are now eventually
+consistent (by design, see 3.4).
+
+Found while building: the background writer needs `Microsoft.Extensions.Hosting.Abstractions` in Infrastructure
+(new package, sign-off at scenario review).
+
 ## 6. Validation
 *Filled in at close-out (BF-10).*

@@ -5,6 +5,7 @@ using UrlShortener.Api.Health;
 using UrlShortener.Api.StaticPage;
 using UrlShortener.Core.Links;
 using UrlShortener.Infrastructure;
+using UrlShortener.Infrastructure.Clicks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,11 +15,11 @@ var connectionString = builder.Configuration.GetConnectionString("Links")
 // Core services
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ICodeGenerator, RandomCodeGenerator>();
-builder.Services.AddScoped<IClickRecorder, ReadModifyWriteClickRecorder>();
 builder.Services.AddScoped<LinkService>();
 
 // Persistence
 builder.Services.AddInfrastructure(connectionString);
+builder.Services.Configure<ClickRecordingOptions>(builder.Configuration.GetSection(ClickRecordingOptions.SectionName));
 
 // HTTP
 builder.Services.Configure<ShortLinkOptions>(builder.Configuration.GetSection(ShortLinkOptions.SectionName));

@@ -46,9 +46,10 @@ public sealed class LinkService(
     }
 
     /// <summary>
-    /// Resolves a code for a redirect and counts the click. Returns null when the code does not exist.
+    /// Resolves a code for a redirect and records the click. Returns null when the code does not exist.
+    /// The click is queued, not written here, so the redirect never waits for the database.
     /// </summary>
-    public async Task<ShortLink?> VisitAsync(string? code, CancellationToken cancellationToken = default)
+    public async Task<ShortLink?> VisitAsync(string? code, Uri? referrer, CancellationToken cancellationToken = default)
     {
         var link = await ResolveAsync(code, cancellationToken).ConfigureAwait(false);
         if (link is null)
@@ -56,7 +57,7 @@ public sealed class LinkService(
             return null;
         }
 
-        await clickRecorder.RecordAsync(link, cancellationToken).ConfigureAwait(false);
+        clickRecorder.Record(new ClickEvent(link.Id, timeProvider.GetUtcNow(), ClickEvent.ReferrerHostFrom(referrer)));
         return link;
     }
 }

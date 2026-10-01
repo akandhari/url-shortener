@@ -8,11 +8,12 @@ public class LinkServiceTests
 
     private readonly FakeLinkRepository _repository = new();
     private readonly FixedTimeProvider _time = new(Now);
+    private readonly FakeClickRecorder _clicks = new();
 
     [Fact]
     public async Task CreateAsync_stores_and_returns_a_new_link()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _time);
 
         var result = await service.CreateAsync("https://example.com/page");
 
@@ -27,7 +28,7 @@ public class LinkServiceTests
     [Fact]
     public async Task CreateAsync_gives_the_same_url_a_new_code_each_time()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _time);
 
         var first = await service.CreateAsync("https://example.com");
         var second = await service.CreateAsync("https://example.com");
@@ -38,7 +39,7 @@ public class LinkServiceTests
     [Fact]
     public async Task CreateAsync_rejects_an_invalid_url_and_stores_nothing()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _time);
 
         var result = await service.CreateAsync("javascript:alert(1)");
 
@@ -53,7 +54,7 @@ public class LinkServiceTests
     {
         await _repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Now), default);
         var generator = new SequenceCodeGenerator("aaaaaaa", "bbbbbbb");
-        var service = new LinkService(_repository, generator, new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, generator, _clicks, _time);
 
         var result = await service.CreateAsync("https://example.com");
 
@@ -66,7 +67,7 @@ public class LinkServiceTests
     {
         await _repository.TryAddAsync(new ShortLink("aaaaaaa", new Uri("https://taken.example"), Now), default);
         var alwaysTaken = new SequenceCodeGenerator(Enumerable.Repeat("aaaaaaa", 10).ToArray());
-        var service = new LinkService(_repository, alwaysTaken, new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, alwaysTaken, _clicks, _time);
 
         var result = await service.CreateAsync("https://example.com");
 
@@ -78,7 +79,7 @@ public class LinkServiceTests
     [Fact]
     public async Task ResolveAsync_returns_the_link_for_a_known_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _time);
         var created = await service.CreateAsync("https://example.com");
 
         var found = await service.ResolveAsync(created.Link!.Code);
@@ -89,7 +90,7 @@ public class LinkServiceTests
     [Fact]
     public async Task ResolveAsync_returns_null_for_an_unknown_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _time);
 
         Assert.Null(await service.ResolveAsync("zzzzzzz"));
         Assert.Equal(1, _repository.FindCalls);
@@ -102,32 +103,34 @@ public class LinkServiceTests
     [InlineData("abc123O")]
     public async Task ResolveAsync_skips_the_repository_for_malformed_codes(string? code)
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _time);
 
         Assert.Null(await service.ResolveAsync(code));
         Assert.Equal(0, _repository.FindCalls);
     }
 
     [Fact]
-    public async Task VisitAsync_counts_the_click_and_saves_it()
+    public async Task VisitAsync_records_one_click_with_link_time_and_referrer_host()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _time);
         var created = await service.CreateAsync("https://example.com");
 
-        var visited = await service.VisitAsync(created.Link!.Code);
+        var visited = await service.VisitAsync(created.Link!.Code, new Uri("https://News.Example.com/article?token=secret"));
 
-        Assert.NotNull(visited);
-        Assert.Equal(1, visited.ClickCount);
-        Assert.Equal(1, _repository.UpdateCalls);
+        Assert.Same(created.Link, visited);
+        var click = Assert.Single(_clicks.Recorded);
+        Assert.Equal(created.Link.Id, click.LinkId);
+        Assert.Equal(Now, click.OccurredAt);
+        Assert.Equal("news.example.com", click.ReferrerHost);   // host only: no path, no token
     }
 
     [Fact]
-    public async Task VisitAsync_returns_null_and_saves_nothing_for_an_unknown_code()
+    public async Task VisitAsync_returns_null_and_records_nothing_for_an_unknown_code()
     {
-        var service = new LinkService(_repository, new RandomCodeGenerator(), new ReadModifyWriteClickRecorder(_repository), _time);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), _clicks, _time);
 
-        Assert.Null(await service.VisitAsync("zzzzzzz"));
-        Assert.Equal(0, _repository.UpdateCalls);
+        Assert.Null(await service.VisitAsync("zzzzzzz", referrer: null));
+        Assert.Empty(_clicks.Recorded);
     }
 
     private sealed class FakeLinkRepository : ILinkRepository
@@ -155,14 +158,13 @@ public class LinkServiceTests
             FindCalls++;
             return Task.FromResult(Links.SingleOrDefault(l => l.Code == code));
         }
+    }
 
-        public int UpdateCalls { get; private set; }
+    private sealed class FakeClickRecorder : IClickRecorder
+    {
+        public List<ClickEvent> Recorded { get; } = [];
 
-        public Task UpdateAsync(ShortLink link, CancellationToken cancellationToken)
-        {
-            UpdateCalls++;
-            return Task.CompletedTask;
-        }
+        public void Record(ClickEvent click) => Recorded.Add(click);
     }
 
     private sealed class SequenceCodeGenerator(params string[] codes) : ICodeGenerator

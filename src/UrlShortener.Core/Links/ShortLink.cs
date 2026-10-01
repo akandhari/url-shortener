@@ -21,7 +21,6 @@ public sealed class ShortLink
 
     public DateTimeOffset CreatedAt { get; private set; }
 
+    /// <summary>Total clicks, increased by the database as click events are stored (eventually consistent).</summary>
     public long ClickCount { get; private set; }
-
-    public void RegisterClick() => ClickCount++;
 }
