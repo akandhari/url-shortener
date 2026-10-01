@@ -1,0 +1,17 @@
+# Keep the build context small and free of local state.
+**/bin/
+**/obj/
+TestResults/
+coverage/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+.git/
+.github/
+.vs/
+.vscode/
+tests/
+docs/
+http/
+scripts/
+*.md
