@@ -2,8 +2,11 @@ using UrlShortener.Core.Links;
 
 namespace UrlShortener.Api.Endpoints;
 
-/// <summary>Request body for creating a short link. The URL is a string so invalid input gets our own error message.</summary>
-public sealed record CreateLinkRequest(string? Url);
+/// <summary>
+/// Request body for creating a short link. Strings, so invalid input gets our own error message.
+/// <see cref="Alias"/> is optional (AB-03b).
+/// </summary>
+public sealed record CreateLinkRequest(string? Url, string? Alias = null);
 
 /// <summary>Public representation of a short link.</summary>
 public sealed record LinkResponse(string Code, Uri ShortUrl, Uri TargetUrl, DateTimeOffset CreatedAt, long ClickCount)

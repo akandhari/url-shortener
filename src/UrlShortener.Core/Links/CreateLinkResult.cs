@@ -7,6 +7,8 @@ public enum CreateLinkError
     None,
     InvalidUrl,
     NoUniqueCode,
+    InvalidAlias,
+    AliasTaken,
 }
 
 /// <summary>

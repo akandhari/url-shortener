@@ -26,6 +26,7 @@ builder.Services.AddSingleton(_ =>
     var blocked = builder.Configuration.GetSection("Abuse:BlockedDomains").Get<string[]>() ?? [];
     return new TargetUrlPolicy(ownHost is null ? [] : [ownHost], blocked);
 });
+builder.Services.AddSingleton(new AliasPolicy(builder.Configuration.GetSection("Abuse:BlockedAliasWords").Get<string[]>() ?? []));
 
 // Persistence
 builder.Services.AddInfrastructure(connectionString);

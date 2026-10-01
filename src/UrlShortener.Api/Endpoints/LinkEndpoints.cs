@@ -45,7 +45,7 @@ public static class LinkEndpoints
         HttpRequest httpRequest,
         CancellationToken cancellationToken)
     {
-        var result = await links.CreateAsync(request.Url, cancellationToken);
+        var result = await links.CreateAsync(request.Url, request.Alias, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -53,6 +53,10 @@ public static class LinkEndpoints
             {
                 CreateLinkError.InvalidUrl => TypedResults.Problem(
                     title: "Invalid URL", detail: result.Message, statusCode: StatusCodes.Status400BadRequest),
+                CreateLinkError.InvalidAlias => TypedResults.Problem(
+                    title: "Invalid alias", detail: result.Message, statusCode: StatusCodes.Status400BadRequest),
+                CreateLinkError.AliasTaken => TypedResults.Problem(
+                    title: "Alias taken", detail: result.Message, statusCode: StatusCodes.Status409Conflict),
                 _ => TypedResults.Problem(
                     title: "Could not create the link", detail: result.Message,
                     statusCode: StatusCodes.Status503ServiceUnavailable),

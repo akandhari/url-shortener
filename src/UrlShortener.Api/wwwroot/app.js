@@ -4,6 +4,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("shorten-form");
   const input = document.getElementById("url");
+  const aliasInput = document.getElementById("alias");
   const shortenButton = document.getElementById("shorten");
   const errorBox = document.getElementById("error");
   const result = document.getElementById("result");
@@ -89,7 +90,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: input.value }),
+        // An empty alias field means "random code": send no alias at all.
+        body: JSON.stringify(aliasInput.value.trim() ? { url: input.value, alias: aliasInput.value } : { url: input.value }),
       });
 
       if (!response.ok) {

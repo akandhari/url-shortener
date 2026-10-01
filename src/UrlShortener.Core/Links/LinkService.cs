@@ -7,7 +7,8 @@ public sealed class LinkService(
     IClickRecorder clickRecorder,
     ILinkStatsQuery statsQuery,
     TimeProvider timeProvider,
-    TargetUrlPolicy? urlPolicy = null)
+    TargetUrlPolicy? urlPolicy = null,
+    AliasPolicy? aliasPolicy = null)
 {
     /// <summary>
     /// With ~2.2 trillion possible codes a single collision is rare; five in a row means something is broken
@@ -21,12 +22,31 @@ public sealed class LinkService(
     /// <summary>How many referring sites the stats list.</summary>
     public const int TopReferrerCount = 5;
 
-    public async Task<CreateLinkResult> CreateAsync(string? rawTarget, CancellationToken cancellationToken = default)
+    public Task<CreateLinkResult> CreateAsync(string? rawTarget, CancellationToken cancellationToken = default) =>
+        CreateAsync(rawTarget, alias: null, cancellationToken);
+
+    /// <summary>Creates a link with a random code, or with <paramref name="alias"/> when one is given (AB-03b).</summary>
+    public async Task<CreateLinkResult> CreateAsync(string? rawTarget, string? alias, CancellationToken cancellationToken = default)
     {
         var validation = TargetUrlValidator.Validate(rawTarget, urlPolicy);
         if (!validation.IsValid)
         {
             return CreateLinkResult.Failure(CreateLinkError.InvalidUrl, validation.Error);
+        }
+
+        if (alias is not null)
+        {
+            var aliasCheck = AliasRules.Validate(alias, aliasPolicy);
+            if (!aliasCheck.IsValid)
+            {
+                return CreateLinkResult.Failure(CreateLinkError.InvalidAlias, aliasCheck.Error);
+            }
+
+            // The unique index decides whether the alias is free; no silent fallback to a random code.
+            var aliased = new ShortLink(aliasCheck.Alias, validation.Url, timeProvider.GetUtcNow());
+            return await repository.TryAddAsync(aliased, cancellationToken).ConfigureAwait(false)
+                ? CreateLinkResult.Success(aliased)
+                : CreateLinkResult.Failure(CreateLinkError.AliasTaken, $"The alias '{aliasCheck.Alias}' is already taken.");
         }
 
         for (var attempt = 1; attempt <= MaxCodeAttempts; attempt++)

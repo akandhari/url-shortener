@@ -100,7 +100,7 @@ public class LinkServiceTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("too-long-code")]
+    [InlineData("Bad_Code!")]
     [InlineData("abc123O")]
     public async Task ResolveAsync_skips_the_repository_for_malformed_codes(string? code)
     {
