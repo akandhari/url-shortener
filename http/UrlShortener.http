@@ -1,0 +1,47 @@
+# Sample requests. Open in Visual Studio, Rider, or VS Code with the REST Client extension.
+# Start the API first: dotnet run --project src/UrlShortener.Api
+
+@host = http://localhost:5173
+
+### Create a short link (201 + Location)
+# @name create
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ "url": "https://example.com/a/very/long/page?campaign=fall" }
+
+### Get the link's details (200)
+GET {{host}}/api/links/{{create.response.body.$.code}}
+
+### Follow the short link (302 to the target; counts a click)
+GET {{host}}/{{create.response.body.$.code}}
+
+### Invalid URL: unsafe scheme (400, ProblemDetails)
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ "url": "javascript:alert(1)" }
+
+### Invalid URL: not absolute (400)
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ "url": "example.com/page" }
+
+### Malformed JSON (400)
+POST {{host}}/api/links
+Content-Type: application/json
+
+{ not json
+
+### Unknown code (404, ProblemDetails)
+GET {{host}}/zzzzzzz
+
+### Health: liveness and readiness (200)
+GET {{host}}/health/live
+
+###
+GET {{host}}/health/ready
+
+### OpenAPI document
+GET {{host}}/openapi/v1.json
