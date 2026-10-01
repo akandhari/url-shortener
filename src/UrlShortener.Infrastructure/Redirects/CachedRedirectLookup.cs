@@ -7,7 +7,8 @@ namespace UrlShortener.Infrastructure.Redirects;
 /// <summary>
 /// Caches code → (link id, target) for the redirect path. A link's target never changes, so a hit is always correct
 /// today. Unknown codes are NOT cached: otherwise random requests could fill memory, and a link created right after a
-/// miss would keep returning 404. When links can be disabled (AB-04), disabling must remove the entry.
+/// miss would keep returning 404. Entries carry the expiry (checked at every visit) and are removed when a link is
+/// disabled (AB-04).
 /// </summary>
 internal sealed class CachedRedirectLookup(ILinkRepository repository, RedirectCache cache) : IRedirectLookup
 {
@@ -24,10 +25,12 @@ internal sealed class CachedRedirectLookup(ILinkRepository repository, RedirectC
             return null;
         }
 
-        var target = new RedirectTarget(link.Id, link.TargetUrl);
+        var target = new RedirectTarget(link.Id, link.TargetUrl, link.ExpiresAt, link.DisabledAt is not null);
         cache.Set(code, target);
         return target;
     }
+
+    public void Invalidate(string code) => cache.Remove(code);
 }
 
 /// <summary>Own, size-limited memory cache for redirect targets (not shared with anything else in the app).</summary>

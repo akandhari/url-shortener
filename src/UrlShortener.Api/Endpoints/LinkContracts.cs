@@ -2,14 +2,42 @@ using UrlShortener.Core.Links;
 
 namespace UrlShortener.Api.Endpoints;
 
-/// <summary>Request body for creating a short link. The URL is a string so invalid input gets our own error message.</summary>
-public sealed record CreateLinkRequest(string? Url);
+/// <summary>
+/// Request body for creating a short link. Strings, so invalid input gets our own error message.
+/// <see cref="Alias"/> (AB-03b) and <see cref="ExpiresAt"/> (AB-04) are optional.
+/// </summary>
+public sealed record CreateLinkRequest(string? Url, string? Alias = null, DateTimeOffset? ExpiresAt = null);
 
-/// <summary>Public representation of a short link.</summary>
-public sealed record LinkResponse(string Code, Uri ShortUrl, Uri TargetUrl, DateTimeOffset CreatedAt, long ClickCount)
+/// <summary>Public representation of a short link. <see cref="Status"/> is active, expired or disabled.</summary>
+public sealed record LinkResponse(
+    string Code,
+    Uri ShortUrl,
+    Uri TargetUrl,
+    DateTimeOffset CreatedAt,
+    long ClickCount,
+    DateTimeOffset? ExpiresAt,
+    DateTimeOffset? DisabledAt,
+    string Status)
 {
-    public static LinkResponse From(ShortLink link, Uri publicBaseUrl) =>
-        new(link.Code, new Uri(publicBaseUrl, link.Code), link.TargetUrl, link.CreatedAt, link.ClickCount);
+    public static LinkResponse From(ShortLink link, Uri publicBaseUrl, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(link);
+
+        return new(
+            link.Code,
+            new Uri(publicBaseUrl, link.Code),
+            link.TargetUrl,
+            link.CreatedAt,
+            link.ClickCount,
+            link.ExpiresAt,
+            link.DisabledAt,
+            link.StatusAt(now) switch
+            {
+                LinkStatus.Active => "active",
+                LinkStatus.Expired => "expired",
+                _ => "disabled",
+            });
+    }
 }
 
 public sealed record DailyClicksResponse(DateOnly Date, int Clicks);

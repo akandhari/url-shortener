@@ -8,8 +8,9 @@ using UrlShortener.Infrastructure.Persistence;
 namespace UrlShortener.IntegrationTests.Brownfield;
 
 /// <summary>
-/// BF-09: a database created by v0.1.0 (first migration only, with existing links and counts) upgrades to v0.2 with
-/// its data intact, and the Links table is unchanged, so rolling back to v0.1.0 stays possible.
+/// BF-09: a database created by v0.1.0 (first migration only, with existing links and counts) upgrades to the latest
+/// version with its data intact, and every column v0.1.0 uses is still there unchanged, so rolling back stays
+/// possible. (AB-04 adds nullable columns to Links on purpose; older versions simply don't select them.)
 /// </summary>
 public sealed class UpgradeFromV01Tests : IDisposable
 {
@@ -35,14 +36,16 @@ public sealed class UpgradeFromV01Tests : IDisposable
             """);
         var linksColumnsBefore = await LinksColumnsAsync();
 
-        await db.Database.MigrateAsync();   // upgrade to v0.2
+        await db.Database.MigrateAsync();   // upgrade to the latest version
 
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         var links = await db.Links.AsNoTracking().OrderBy(l => l.Code).ToListAsync();
         Assert.Equal(["abc1234", "xyz9876"], links.Select(l => l.Code));
         Assert.Equal([7L, 0L], links.Select(l => l.ClickCount));
         Assert.Equal(new Uri("https://example.com/one"), links[0].TargetUrl);
-        Assert.Equal(linksColumnsBefore, await LinksColumnsAsync());   // additive migration: Links untouched
+        var linksColumnsAfter = await LinksColumnsAsync();
+        Assert.All(linksColumnsBefore, column => Assert.Contains(column, linksColumnsAfter));   // v0.1 columns unchanged
+        Assert.All(links, l => Assert.Equal(LinkStatus.Active, l.StatusAt(DateTimeOffset.UtcNow)));  // old links stay live
 
         // Old links can receive click events in the new table.
         db.ClickEvents.Add(new ClickEvent(links[0].Id, DateTimeOffset.UtcNow, null));

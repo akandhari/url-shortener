@@ -90,6 +90,10 @@ public sealed class EfLinkRepositoryTests : IDisposable
     {
         public Task<RedirectTarget?> FindAsync(string code, CancellationToken cancellationToken) =>
             Task.FromResult<RedirectTarget?>(null);
+
+        public void Invalidate(string code)
+        {
+        }
     }
 
     private sealed class IgnoreClicks : IClickRecorder

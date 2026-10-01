@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
+using UrlShortener.Api.Abuse;
 using UrlShortener.Api.Endpoints;
 using UrlShortener.Api.Health;
 using UrlShortener.Api.StaticPage;
@@ -18,6 +19,15 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ICodeGenerator, RandomCodeGenerator>();
 builder.Services.AddScoped<LinkService>();
 
+// Abuse rules for target URLs (AB-02): never link to ourselves; optional domain denylist from configuration.
+builder.Services.AddSingleton(_ =>
+{
+    var ownHost = builder.Configuration.GetValue<Uri?>($"{ShortLinkOptions.SectionName}:PublicBaseUrl")?.IdnHost;
+    var blocked = builder.Configuration.GetSection("Abuse:BlockedDomains").Get<string[]>() ?? [];
+    return new TargetUrlPolicy(ownHost is null ? [] : [ownHost], blocked);
+});
+builder.Services.AddSingleton(new AliasPolicy(builder.Configuration.GetSection("Abuse:BlockedAliasWords").Get<string[]>() ?? []));
+
 // Persistence
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.Configure<ClickRecordingOptions>(builder.Configuration.GetSection(ClickRecordingOptions.SectionName));
@@ -25,6 +35,7 @@ builder.Services.Configure<RedirectCacheOptions>(builder.Configuration.GetSectio
 
 // HTTP
 builder.Services.Configure<ShortLinkOptions>(builder.Configuration.GetSection(ShortLinkOptions.SectionName));
+builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.SectionName));
 builder.Services.AddProblemDetails();
 
 // A malformed request body is the caller's fault: keep its 400 instead of turning it into a 500.
@@ -35,6 +46,7 @@ builder.Services.Configure<ExceptionHandlerOptions>(options =>
         : StatusCodes.Status500InternalServerError);
 
 builder.Services.AddOpenApi();
+builder.Services.AddClientRateLimits(builder.Configuration);
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
@@ -42,6 +54,14 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 await app.Services.MigrateDatabaseAsync();
+
+// Security headers on every response, including errors (AB-05). HSTS only outside Development and only matters
+// over HTTPS: browsers then refuse plain HTTP for this host.
+app.UseSecurityHeaders();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
 
 // Unhandled exceptions and empty error responses become ProblemDetails, without stack traces.
 app.UseExceptionHandler();
@@ -56,6 +76,7 @@ app.UseStaticFiles(new StaticFileOptions
         context.Context.Response.Headers.ContentSecurityPolicy = ContentSecurityPolicy.Value,
 });
 app.UseRouting();
+app.UseRateLimiter();   // after routing, so each endpoint's policy is known
 
 // API description. Open to everyone in this prototype so reviewers can try it; restrict it in production.
 app.MapOpenApi();

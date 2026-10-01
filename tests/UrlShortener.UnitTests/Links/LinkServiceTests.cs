@@ -7,7 +7,7 @@ public class LinkServiceTests
     private static readonly DateTimeOffset Now = new(2026, 9, 30, 12, 0, 0, TimeSpan.Zero);
 
     private readonly FakeLinkRepository _repository = new();
-    private readonly FixedTimeProvider _time = new(Now);
+    private readonly MutableTimeProvider _time = new(Now);
     private readonly FakeClickRecorder _clicks = new();
     private readonly FakeStatsQuery _stats = new();
 
@@ -100,7 +100,7 @@ public class LinkServiceTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("too-long-code")]
+    [InlineData("Bad_Code!")]
     [InlineData("abc123O")]
     public async Task ResolveAsync_skips_the_repository_for_malformed_codes(string? code)
     {
@@ -118,7 +118,8 @@ public class LinkServiceTests
 
         var visited = await service.VisitAsync(created.Link!.Code, new Uri("https://News.Example.com/article?token=secret"));
 
-        Assert.Equal(new RedirectTarget(created.Link.Id, created.Link.TargetUrl), visited);
+        Assert.Equal(VisitOutcome.Redirect, visited.Outcome);
+        Assert.Equal(created.Link.TargetUrl, visited.Target!.TargetUrl);
         var click = Assert.Single(_clicks.Recorded);
         Assert.Equal(created.Link.Id, click.LinkId);
         Assert.Equal(Now, click.OccurredAt);
@@ -130,7 +131,7 @@ public class LinkServiceTests
     {
         var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
 
-        Assert.Null(await service.VisitAsync("zzzzzzz", referrer: null));
+        Assert.Equal(VisitOutcome.NotFound, (await service.VisitAsync("zzzzzzz", referrer: null)).Outcome);
         Assert.Empty(_clicks.Recorded);
     }
 
@@ -158,6 +159,19 @@ public class LinkServiceTests
         {
             FindCalls++;
             return Task.FromResult(Links.SingleOrDefault(l => l.Code == code));
+        }
+
+        public HashSet<string> Disabled { get; } = [];
+
+        public Task<bool> DisableAsync(string code, DateTimeOffset disabledAt, CancellationToken cancellationToken)
+        {
+            if (Links.All(l => l.Code != code))
+            {
+                return Task.FromResult(false);
+            }
+
+            Disabled.Add(code);
+            return Task.FromResult(true);
         }
     }
 
@@ -189,8 +203,70 @@ public class LinkServiceTests
     /// <summary>Uncached lookup straight from the fake repository.</summary>
     private sealed class RepositoryLookup(FakeLinkRepository repository) : IRedirectLookup
     {
+        public List<string> Invalidated { get; } = [];
+
         public async Task<RedirectTarget?> FindAsync(string code, CancellationToken cancellationToken) =>
-            await repository.FindByCodeAsync(code, cancellationToken) is { } link ? new RedirectTarget(link.Id, link.TargetUrl) : null;
+            await repository.FindByCodeAsync(code, cancellationToken) is { } link
+                ? new RedirectTarget(link.Id, link.TargetUrl, link.ExpiresAt, repository.Disabled.Contains(code))
+                : null;
+
+        public void Invalidate(string code) => Invalidated.Add(code);
+    }
+
+    [Theory]
+    [InlineData(-1)]        // in the past
+    [InlineData(0)]         // now is not in the future
+    [InlineData(366 * 24)]  // more than 365 days ahead
+    public async Task CreateAsync_rejects_an_expiry_outside_the_allowed_window(int hoursFromNow)
+    {
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
+
+        var result = await service.CreateAsync("https://example.com", alias: null, Now.AddHours(hoursFromNow));
+
+        Assert.Equal(CreateLinkError.InvalidExpiry, result.Error);
+        Assert.Empty(_repository.Links);
+    }
+
+    [Fact]
+    public async Task Expired_link_is_gone_and_records_no_click()
+    {
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
+        var created = await service.CreateAsync("https://example.com", alias: null, Now.AddHours(1));
+        Assert.Equal(Now.AddHours(1), created.Link!.ExpiresAt);
+
+        Assert.Equal(VisitOutcome.Redirect, (await service.VisitAsync(created.Link.Code, null)).Outcome);
+        _time.Now = Now.AddHours(1);   // the expiry moment itself counts as expired
+        var visit = await service.VisitAsync(created.Link.Code, null);
+
+        Assert.Equal(VisitOutcome.Gone, visit.Outcome);
+        Assert.Equal(LinkStatus.Expired, visit.GoneBecause);
+        Assert.Single(_clicks.Recorded);   // only the first, live visit
+    }
+
+    [Fact]
+    public async Task DisableAsync_makes_the_link_gone_and_clears_the_cache_entry()
+    {
+        var lookup = new RepositoryLookup(_repository);
+        var service = new LinkService(_repository, new RandomCodeGenerator(), lookup, _clicks, _stats, _time);
+        var created = await service.CreateAsync("https://example.com");
+
+        Assert.True(await service.DisableAsync(created.Link!.Code));
+        var visit = await service.VisitAsync(created.Link.Code, null);
+
+        Assert.Equal(VisitOutcome.Gone, visit.Outcome);
+        Assert.Equal(LinkStatus.Disabled, visit.GoneBecause);
+        Assert.Equal([created.Link.Code], lookup.Invalidated);
+        Assert.Empty(_clicks.Recorded);
+    }
+
+    [Theory]
+    [InlineData("zzzzzzz")]
+    [InlineData("Bad_Code!")]
+    public async Task DisableAsync_returns_false_for_unknown_codes(string code)
+    {
+        var service = new LinkService(_repository, new RandomCodeGenerator(), new RepositoryLookup(_repository), _clicks, _stats, _time);
+
+        Assert.False(await service.DisableAsync(code));
     }
 
     private sealed class FakeStatsQuery : ILinkStatsQuery
@@ -226,8 +302,10 @@ public class LinkServiceTests
         public string Generate() => codes[Calls++];
     }
 
-    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    private sealed class MutableTimeProvider(DateTimeOffset now) : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => now;
+        public DateTimeOffset Now { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 }

@@ -46,6 +46,11 @@ input {
   font-size: 1rem;
 }
 
+label.optional { margin-top: 12px; font-weight: 600; }
+.unit { font-weight: normal; color: var(--muted); font-size: 0.8rem; }
+#alias, #expires { width: 100%; }
+select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: #fff; }
+
 input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 button {

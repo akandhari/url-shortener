@@ -19,6 +19,15 @@
                placeholder="https://example.com/a/very/long/page" required>
         <button id="shorten" type="submit">Shorten</button>
       </div>
+      <label for="alias" class="optional">Custom alias <span class="unit">(optional, e.g. fall-sale)</span></label>
+      <input id="alias" name="alias" type="text" autocomplete="off" maxlength="32" placeholder="leave empty for a random code">
+      <label for="expires" class="optional">Expires</label>
+      <select id="expires" name="expires">
+        <option value="">Never</option>
+        <option value="1">After 1 day</option>
+        <option value="7">After 7 days</option>
+        <option value="30">After 30 days</option>
+      </select>
     </form>
 
     <p id="error" class="error" role="alert" hidden></p>
@@ -30,6 +39,7 @@
         <button id="copy" type="button">Copy</button>
       </div>
       <p class="meta">Goes to: <span id="target-url"></span></p>
+      <p class="meta">Status: <span id="status"></span></p>
       <p class="meta">Clicks: <strong id="clicks">0</strong>
         <button id="refresh" type="button" class="link-button">Refresh</button>
       </p>

@@ -4,6 +4,9 @@
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("shorten-form");
   const input = document.getElementById("url");
+  const aliasInput = document.getElementById("alias");
+  const expiresSelect = document.getElementById("expires");
+  const statusText = document.getElementById("status");
   const shortenButton = document.getElementById("shorten");
   const errorBox = document.getElementById("error");
   const result = document.getElementById("result");
@@ -61,11 +64,34 @@ document.addEventListener("DOMContentLoaded", () => {
     fillList(referrerList, stats.topReferrers.map(r => [r.host, r.clicks]), "No clicks yet");
   }
 
+  // Optional fields are only sent when chosen: an empty alias means "random code", "Never" means no expiry.
+  function buildRequest() {
+    const request = { url: input.value };
+    if (aliasInput.value.trim()) {
+      request.alias = aliasInput.value;
+    }
+    if (expiresSelect.value) {
+      request.expiresAt = new Date(Date.now() + Number(expiresSelect.value) * 24 * 60 * 60 * 1000).toISOString();
+    }
+    return request;
+  }
+
+  function describeStatus(link) {
+    if (link.status === "disabled") {
+      return "disabled";
+    }
+    if (link.status === "expired") {
+      return "expired";
+    }
+    return link.expiresAt ? `active, expires ${new Date(link.expiresAt).toLocaleString()}` : "active, never expires";
+  }
+
   function showLink(link) {
     currentCode = link.code;
     shortUrl.textContent = link.shortUrl;
     shortUrl.href = link.shortUrl;
     targetUrl.textContent = link.targetUrl;
+    statusText.textContent = describeStatus(link);
     clicks.textContent = String(link.clickCount);
     result.hidden = false;
   }
@@ -89,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: input.value }),
+        body: JSON.stringify(buildRequest()),
       });
 
       if (!response.ok) {

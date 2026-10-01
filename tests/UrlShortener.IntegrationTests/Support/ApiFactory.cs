@@ -21,8 +21,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         _keepAlive.Open();
     }
 
+    // Tests that are not about rate limiting get generous limits so they never trip over them.
     protected override void ConfigureWebHost(IWebHostBuilder builder) =>
-        builder.UseSetting("ConnectionStrings:Links", _connectionString);
+        builder.UseSetting("ConnectionStrings:Links", _connectionString)
+            .UseSetting("RateLimits:Create:PermitLimit", "100000")
+            .UseSetting("RateLimits:Redirect:PermitLimit", "100000")
+            .UseSetting("RateLimits:Lookup:PermitLimit", "100000");
 
     protected override void Dispose(bool disposing)
     {
